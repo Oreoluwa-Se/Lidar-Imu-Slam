@@ -1,0 +1,28 @@
+version: '3' # version of docker-compose
+
+services:
+  lio_slam_ros:
+    # container name
+    image: lio_slam_proj:latest
+    container_name: lio_slam_ros
+    network_mode: host
+    privileged: true
+
+    volumes:
+      # ---
+      # Allow docker to run GUI remeber to run "xhost +local:root" to allow public gui
+      # ----
+      - /tmp/.X11-unix:/tmp/.X11-unix
+      - ../env_ws/src:/env_ws/src
+      - ../env_ws/bag:/env_ws/bag
+
+    environment:
+      - DISPLAY # forward display variable of the host to the container
+      - QT_X11_NO_MITSHM=1 # enable gui functionality within the container
+
+    command:
+      - bash
+      - -c
+      - |
+        cd env_ws && \
+        terminator -u --title="Docker container"
