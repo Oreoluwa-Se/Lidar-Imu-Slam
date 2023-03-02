@@ -51,6 +51,7 @@ include_directories(
 )
 
 file(GLOB_RECURSE PRIVATE_HEADERS ${PROJ_INCLUDE_DIR}/*.hpp)
+file(GLOB_RECURSE PRIVATE_SOURCES ${PROJ_SOURCE_DIR}/*.hpp)
 file(GLOB_RECURSE PRIVATE_SOURCES ${PROJ_SOURCE_DIR}/*.cpp)
 
 add_library(${PROJECT_NAME} SHARED 
@@ -73,7 +74,7 @@ catkin_package(
 
 add_executable(slam_run src/slam_run.cpp)
   
-add_dependencies(sensor_node 
+add_dependencies(slam_run 
 	${sensor_node_EXPORTED_TARGETS} 
 	${catkin_EXPORTED_TARGETS})
 
