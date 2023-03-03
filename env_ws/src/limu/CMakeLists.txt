@@ -72,15 +72,15 @@ catkin_package(
   DEPENDS EIGEN3 PCL
 )
 
-add_executable(slam_run src/slam_run.cpp)
+add_executable(odom_run src/odom_run.cpp)
   
-add_dependencies(slam_run 
+add_dependencies(odom_run 
 	${sensor_node_EXPORTED_TARGETS} 
 	${catkin_EXPORTED_TARGETS})
 
 
 target_link_libraries(
-	slam_run
+	odom_run
 	${PROJECT_NAME}
 	${catkin_LIBRARIES}
 	${Sophus_LIBRARIES}
