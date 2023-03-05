@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.0.2)
 project(limu)
 
 ## Compile as C++11, supported in ROS Kinetic and newer
-# add_compile_options(-std=c++11)
+add_compile_options(-std=c++14 -O3 -pthread)
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
@@ -47,6 +47,7 @@ include_directories(
   ${ROBIN_INCLUDE_DIR}
   ${TBB_INCLUDE_DIRS}
   ${Sophus_INCLUDE_DIRS}
+  pthread
   include
 )
 
@@ -78,7 +79,6 @@ add_dependencies(odom_run
 	${sensor_node_EXPORTED_TARGETS} 
 	${catkin_EXPORTED_TARGETS})
 
-
 target_link_libraries(
 	odom_run
 	${PROJECT_NAME}
@@ -89,6 +89,7 @@ target_link_libraries(
 	fmt::fmt
 	robin_map
 )
+  
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
 

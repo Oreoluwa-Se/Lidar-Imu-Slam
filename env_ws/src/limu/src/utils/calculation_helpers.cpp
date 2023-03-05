@@ -83,12 +83,12 @@ namespace utils
     utils::Vec3dVector pointcloud2eigen(const utils::PointCloudXYZI &msg)
     {
         utils::Vec3dVector points;
-        points.reserve(msg.points.size());
+        points.resize(msg.points.size());
 
         std::transform(
             msg.points.begin(), msg.points.end(),
-            std::back_inserter(points),
-            [](const auto &point)
+            points.begin(),
+            [&](const auto &point)
             {
                 return utils::Vec3d(point.x, point.y, point.z);
             });
@@ -128,9 +128,9 @@ namespace utils
 
         std::for_each(
             points.begin(), points.end(),
-            [&](const auto &point)
+            [&](auto &point)
             {
-                return T * point;
+                point = T * point;
             });
     }
 

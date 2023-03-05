@@ -4,9 +4,11 @@
 #include "tf2_ros/static_transform_broadcaster.h"
 #include "geometry_msgs/TransformStamped.h"
 #include "tf2_ros/transform_broadcaster.h"
+#include "geometry_msgs/PoseStamped.h"
 #include "limu/sensors/lidar/frame.hpp"
 #include "limu/sensors/sync_frame.hpp"
 #include "limu/sensors/imu/frame.hpp"
+#include "limu/sensors/lidar/icp.hpp"
 #include "sensor_msgs/PointCloud2.h"
 #include "sensor_msgs/Imu.h"
 #include "nav_msgs/Path.h"
@@ -32,12 +34,16 @@ public:
           imu_ptr(std::make_shared<frame::Imu>(nh)),
           tracker(Trackers())
     {
+        icp_ptr = std::make_shared<lidar::KissICP>(lidar_ptr->config);
         // subscribing to lidar and imu topics.
         std::string lidar_topic, imu_topic;
         nh.param<std::string>("lidar_topic", lidar_topic, "/rslidar_points");
         nh.param<std::string>("imu_topic", imu_topic, "/imu_ned/data");
         lidar_sub = nh.subscribe(lidar_topic, queue_size, &Odometry::lidar_callback, this);
         imu_sub = nh.subscribe(imu_topic, queue_size, &Odometry::imu_callback, this);
+
+        // initialize publishers
+        initialize_publishers(nh);
 
         // publish static transform to connect child frame to baselink
         nh.param<std::string>("odom_frame", odom_frame, "odom");
@@ -65,20 +71,38 @@ public:
 
 private:
     // functions
+    void initialize_publishers(ros::NodeHandle &nh);
     void lidar_callback(const sensor_msgs::PointCloud2::ConstPtr &msg);
     void imu_callback(const sensor_msgs::Imu::ConstPtr &msg);
     bool lidar_process(frame::LidarImuInit::Ptr &meas);
 
     void estimate_lidar_odometry(frame::LidarImuInit::Ptr &meas);
+    void publish_point_cloud(ros::Publisher &pub, const ros::Time &time,
+                             const std::string &frame_id,
+                             const utils::Vec3dVector &points);
 
     // attributes
+    lidar::KissICP::Ptr icp_ptr;
     frame::Lidar::Ptr lidar_ptr;
     frame::Imu::Ptr imu_ptr;
     Trackers tracker;
 
+    // broadcasting
+    tf2_ros::TransformBroadcaster tf_broadcaster;
+
     // subscribe to pointcloud and imu
     ros::Subscriber lidar_sub;
     ros::Subscriber imu_sub;
+
+    ros::Publisher odom_publisher;
+    ros::Publisher traj_publisher;
+    ros::Publisher frame_publisher;
+    ros::Publisher kpoints_publisher;
+    ros::Publisher local_map_publisher;
+
+    // message for publishing path
+    nav_msgs::Path path_msgs;
+
     std::string child_frame;
     std::string odom_frame;
     std::mutex data_mutex;

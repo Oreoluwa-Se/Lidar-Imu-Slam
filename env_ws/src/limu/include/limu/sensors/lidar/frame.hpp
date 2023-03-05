@@ -3,7 +3,9 @@
 #define LIDAR_FRAME_HPP
 
 #include <pcl_conversions/pcl_conversions.h>
+#include "geometry_msgs/TransformStamped.h"
 #include "sensor_msgs/PointCloud2.h"
+#include "nav_msgs/Odometry.h"
 #include "common.hpp"
 #include <ros/ros.h>
 
@@ -60,7 +62,7 @@ namespace frame
               prev_timestamp(0.0), scan_ang_vel(0.0), scan_count(0)
         {
             nh.param<double>("frame_rate", config->frame_rate, 10.0);
-            nh.param<double>("max_range", config->max_range, 100.0);
+            nh.param<double>("max_range", config->max_range, 120.0);
             nh.param<double>("min_range", config->min_range, 1.0);
             nh.param<double>("min_angle", config->min_angle, 0.0);
             nh.param<double>("max_angle", config->max_angle, 360.0);
@@ -125,6 +127,15 @@ namespace frame
             accumulated_segment_time.pop_front();
         }
 
+        // functions for broadcasting ros tings
+        void set_current_pose_nav(const utils::Vec3d &pose, const Eigen::Quaterniond &quat, const ros::Time &time,
+                                  std::string &odom_frame, std::string &child_frame);
+
+    public:
+        geometry_msgs::TransformStamped current_pose;
+        nav_msgs::Odometry odom_msg;
+        std::shared_ptr<ProcessingInfo> config;
+
     private:
         // functions
         void setup()
@@ -144,7 +155,6 @@ namespace frame
                           std::vector<double> &valid_timestamp, double &message_time);
 
         // attributes
-        std::shared_ptr<ProcessingInfo> config;
         sensor_msgs::PointCloud2::ConstPtr msg_holder;
         // important for pointcloud processing
         std::deque<std::vector<double>> timestamps;   // individual timestamps for each buffer.

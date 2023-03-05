@@ -3,9 +3,11 @@
 
 #include "limu/utils/calculation_helpers.hpp"
 #include "limu/utils/types.hpp"
+#include <algorithm>
+#include <string>
 #include <deque>
 #include <mutex>
-#include <string>
+#include <tuple>
 
 // define constants
 #define PI_M 3.14159265358979

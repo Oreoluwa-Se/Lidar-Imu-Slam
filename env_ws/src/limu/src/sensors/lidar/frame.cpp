@@ -115,9 +115,11 @@ namespace frame
                 if (valid_num == static_cast<int>(((cut_num_processed + 1) * valid_pcl_size_processed / required_cut_num) - 1))
                 {
                     cut_num_processed++;
-
+                    // new pointer
+                    PointCloud::Ptr temp(new PointCloud());
+                    *temp = *split_processed;
                     // update holders
-                    processed_buffer.emplace_back(split_processed);
+                    processed_buffer.emplace_back(std::move(temp));
                     timestamps.push_back(utils::normalize_timestamps(times));
                     accumulated_segment_time.push_back(last_frame_end_time_processed / double(1000)); // sec
 
@@ -134,9 +136,11 @@ namespace frame
             if (valid_num == static_cast<int>(((cut_num_surf + 1) * valid_pcl_size_surf / required_cut_num) - 1))
             {
                 cut_num_surf++;
-
+                // new pointer
+                PointCloud::Ptr temp(new PointCloud());
+                *temp = *split_surface;
                 // update holders
-                orig_buffer.emplace_back(split_surface);
+                orig_buffer.emplace_back(std::move(temp));
                 last_frame_end_time_surf += surface_cloud->points[idx].curvature;
 
                 // increment or reset parameters
@@ -250,5 +254,31 @@ namespace frame
 
         // partition pointclouds when necessary.
         split_clouds(surface_cloud, processed_cloud, valid_timestamp, message_time);
+    }
+
+    void Lidar::set_current_pose_nav(const utils::Vec3d &translation, const Eigen::Quaterniond &quat, const ros::Time &time, std::string &odom_frame, std::string &child_frame)
+    {
+
+        current_pose.header.stamp = time;
+        current_pose.header.frame_id = odom_frame;
+        current_pose.child_frame_id = child_frame;
+        current_pose.transform.rotation.x = quat.x();
+        current_pose.transform.rotation.y = quat.y();
+        current_pose.transform.rotation.z = quat.z();
+        current_pose.transform.rotation.w = quat.w();
+        current_pose.transform.translation.x = translation.x();
+        current_pose.transform.translation.y = translation.y();
+        current_pose.transform.translation.z = translation.z();
+
+        odom_msg.header.stamp = time;
+        odom_msg.header.frame_id = odom_frame;
+        odom_msg.child_frame_id = child_frame;
+        odom_msg.pose.pose.orientation.x = quat.x();
+        odom_msg.pose.pose.orientation.y = quat.y();
+        odom_msg.pose.pose.orientation.z = quat.z();
+        odom_msg.pose.pose.orientation.w = quat.w();
+        odom_msg.pose.pose.position.x = translation.x();
+        odom_msg.pose.pose.position.y = translation.y();
+        odom_msg.pose.pose.position.z = translation.z();
     }
 }
