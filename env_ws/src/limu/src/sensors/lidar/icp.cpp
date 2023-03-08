@@ -10,9 +10,7 @@ namespace
         grid.reserve(frame.size());
         for (const auto &point : frame)
         {
-            const auto vox = utils::Voxel(static_cast<int>(point.x() / vox_size),
-                                          static_cast<int>(point.y() / vox_size),
-                                          static_cast<int>(point.z() / vox_size));
+            const auto vox = utils::get_vox_index(point, vox_size);
             if (grid.contains(vox))
                 continue;
             grid.insert(std::make_pair(vox, point));
@@ -68,15 +66,14 @@ namespace lidar
         const auto init_guess = last_pose * pred;
 
         // Run Icp
-        const double max_corresp_dist = 3.0 * sigma;
-        const double kernel = sigma / 3.0;
-
         const SE3d new_pose = ICP(
-            local_map, source, init_guess, max_corresp_dist, kernel,
+            local_map, source, init_guess, 3.0 * sigma, sigma / 3.0,
             config.icp_max_iteration, config.estimation_threshold);
-
+        std::cout << "Current pose: \n"
+                  << new_pose.matrix() << "\n";
         const auto model_dev = init_guess.inverse() * new_pose;
         adaptive_threshold.update_model_deviation(model_dev);
+
         local_map.update(down_sampled, new_pose);
         poses.emplace_back(new_pose);
 

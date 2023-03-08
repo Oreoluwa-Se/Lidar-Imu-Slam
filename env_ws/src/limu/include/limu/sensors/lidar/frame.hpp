@@ -62,8 +62,8 @@ namespace frame
               prev_timestamp(0.0), scan_ang_vel(0.0), scan_count(0)
         {
             nh.param<double>("frame_rate", config->frame_rate, 10.0);
-            nh.param<double>("max_range", config->max_range, 120.0);
-            nh.param<double>("min_range", config->min_range, 1.0);
+            nh.param<double>("max_range", config->max_range, 100.0);
+            nh.param<double>("min_range", config->min_range, 5.0);
             nh.param<double>("min_angle", config->min_angle, 0.0);
             nh.param<double>("max_angle", config->max_angle, 360.0);
             nh.param<int>("num_scan_lines", config->num_scan_lines, 16);
@@ -71,9 +71,9 @@ namespace frame
 
             nh.param<double>("voxel_size", config->voxel_size, config->max_range / 100.0);
             nh.param<int>("vox_side_length", config->vox_side_length, 3);
-            nh.param<int>("max_points_per_voxel", config->max_points_per_voxel, 20);
+            nh.param<int>("max_points_per_voxel", config->max_points_per_voxel, 10);
 
-            nh.param<bool>("deskew", config->deskew, true);
+            nh.param<bool>("deskew", config->deskew, false);
             nh.param<double>("min_motion_th", config->min_motion_th, 0.1);
             nh.param<int>("icp_max_iteration", config->icp_max_iteration, 500);
             nh.param<double>("initial_threshold", config->initial_threshold, 2.0);
@@ -128,8 +128,9 @@ namespace frame
         }
 
         // functions for broadcasting ros tings
-        void set_current_pose_nav(const utils::Vec3d &pose, const Eigen::Quaterniond &quat, const ros::Time &time,
-                                  std::string &odom_frame, std::string &child_frame);
+        void set_current_pose_nav(
+            const utils::Vec3d &pose, const Eigen::Quaterniond &quat,
+            const ros::Time &time, std::string &odom_frame, std::string &child_frame);
 
     public:
         geometry_msgs::TransformStamped current_pose;

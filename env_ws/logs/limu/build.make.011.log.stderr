@@ -1,0 +1,11 @@
+[01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/src/sensors/lidar/helpers/registration.cpp:[m[K In function ‘[01m[Klidar::SE3d lidar::ICP(lidar::VoxelHashMap&, const Vec3dVector&, const SE3d&, double, double, const int&, const double&)[m[K’:
+[01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/src/sensors/lidar/helpers/registration.cpp:202:30:[m[K [01;31m[Kerror: [m[Kexpected primary-expression before ‘[01m[Kif[m[K’
+  202 |             auto estimate = ([01;31m[Kif[m[K j % 2 == 0) ? align_clouds_IQR(result, kernel) : align_clouds(result, kernel);
+      |                              [01;31m[K^~[m[K
+[01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/src/sensors/lidar/helpers/registration.cpp:202:30:[m[K [01;31m[Kerror: [m[Kexpected ‘[01m[K)[m[K’ before ‘[01m[Kif[m[K’
+  202 |             auto estimate = [34m[K([m[K[01;31m[Ki[m[K[32m[Kf[m[K j % 2 == 0) ? align_clouds_IQR(result, kernel) : align_clouds(result, kernel);
+      |                             [34m[K~[m[K[01;31m[K^[m[K[32m[K~[m[K
+      |                              [32m[K)[m[K
+make[2]: *** [CMakeFiles/limu.dir/build.make:115: CMakeFiles/limu.dir/src/sensors/lidar/helpers/registration.cpp.o] Error 1
+make[1]: *** [CMakeFiles/Makefile2:225: CMakeFiles/limu.dir/all] Error 2
+make: *** [Makefile:141: all] Error 2

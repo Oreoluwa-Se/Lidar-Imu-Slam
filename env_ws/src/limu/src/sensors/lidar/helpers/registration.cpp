@@ -40,91 +40,8 @@ namespace
 
 namespace lidar
 {
-    SE3d align_clouds_IQR(
-        const utils::Vec3_Vec3Tuple &points, double th)
+    SE3d align_clouds(const utils::Vec3dVector &source, const utils::Vec3dVector &target, double th)
     {
-        const auto &source = std::get<0>(points);
-        const auto &target = std::get<1>(points);
-
-        // calculate residual and squarednorm
-        std::vector<utils::Vec3d> residual(source.size());
-        std::vector<double> residual_sq_norm(source.size());
-
-        tbb::parallel_for(
-            tbb::blocked_range<size_t>(0, source.size()),
-            [&](const tbb::blocked_range<size_t> &range)
-            {
-                for (size_t i = range.begin(); i != range.end(); ++i)
-                {
-                    const auto res = source[i] - target[i];
-                    residual_sq_norm[i] = res.squaredNorm();
-                    residual[i] = std::move(res);
-                }
-            });
-
-        // use iqr to calculate bounds
-        const auto &iqr_val = outlier::IQR(residual_sq_norm);
-        double low_bound = iqr_val[0] - IQR_TUCHEY * iqr_val[2];
-        double high_bound = iqr_val[1] + IQR_TUCHEY * iqr_val[2];
-
-        // compute jacobian and residuals
-        auto compute_jacobian = [&](auto idx)
-        {
-            const auto skew_source = utils::skew_matrix(source[idx]);
-
-            return (utils::matrix<3, 6>() << utils::Mat3d::Identity(), -skew_source).finished();
-        };
-
-        // defining weight function
-        auto weight = [&](double idx)
-        {
-            const auto &res_sq = residual_sq_norm[idx];
-            const auto cost = utils::square(th) / utils::square(th + res_sq);
-            if (res_sq >= low_bound && res_sq <= high_bound)
-                return cost;
-
-            return 0.5 * cost;
-        };
-
-        const ResultTuple jac = tbb::parallel_reduce(
-            // Range
-            tbb::blocked_range<size_t>{0, source.size()},
-            // Identity
-            ResultTuple(),
-            // 1st lambda: Parallel computation
-            [&](const tbb::blocked_range<size_t> &r, ResultTuple J)
-            {
-                for (size_t i = r.begin(); i < r.end(); ++i)
-                {
-                    const auto J_r = compute_jacobian(i);
-                    const auto &res = residual[i];
-                    const double w = weight(i);
-
-                    J.JTJ.noalias() += J_r.transpose() * w * J_r;
-                    J.JTr.noalias() += J_r.transpose() * w * res;
-                }
-
-                return J;
-            },
-            // 2nd lambda
-            [](ResultTuple a, const ResultTuple &b) -> ResultTuple
-            {
-                return a + b;
-            });
-
-        // solve for twist
-        const auto &JTJ = jac.JTJ;
-        const auto &JTr = jac.JTr;
-        const utils::vector<6> x = JTJ.ldlt().solve(-JTr);
-        return utils::vector6d_to_mat4d(x);
-    }
-
-    SE3d align_clouds(
-        const utils::Vec3_Vec3Tuple &points, double th)
-    {
-        const auto &source = std::get<0>(points);
-        const auto &target = std::get<1>(points);
-
         // compute jacobian and residuals
         auto compute_jacobian_residual = [&](auto idx)
         {
@@ -176,7 +93,7 @@ namespace lidar
 
     SE3d ICP(
         VoxelHashMap &local_map, const utils::Vec3dVector &points,
-        const SE3d &init_guess, const double &max_corresp_dist, const double &kernel,
+        const SE3d &init_guess, const double max_corresp_dist, const double kernel,
         const int &icp_max_iteration, const double &est_threshold)
     {
         if (local_map.empty())
@@ -190,14 +107,13 @@ namespace lidar
 
         for (int j = 0; j < icp_max_iteration; ++j)
         {
-            // Equation(11) returns: std::tuple<Vec3dVector, VecEigenPtrVec3d> {source, target}
+            // Equation(11)
             const auto result = local_map.get_correspondences(source, max_corresp_dist);
             const auto &src = std::get<0>(result);
             const auto &target = std::get<1>(result);
 
             // Equation (12) - For longer runs we alternate IQR method and without IQR
-            // auto estimate = (j % 2 == 0) ? align_clouds_IQR(result, kernel) : align_clouds(result, kernel);
-            auto estimate = align_clouds(result, kernel);
+            auto estimate = align_clouds(src, target, kernel);
 
             // transform points based on current estimation
             utils::transform_points(estimate, source);
@@ -205,13 +121,8 @@ namespace lidar
             // update iterations
             T_icp = estimate * T_icp;
 
-            auto calc_error = estimate.log().norm();
-            if (calc_error < est_threshold)
+            if (estimate.log().norm() < est_threshold)
                 break;
-
-            // // difference is within 50 percent.
-            // if (percentage_difference(est_threshold, calc_error) < 0)
-            //     break;
         }
 
         // return updated pose

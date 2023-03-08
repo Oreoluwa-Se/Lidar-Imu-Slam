@@ -2,6 +2,7 @@
 #define COMMON_HPP
 
 #include "limu/utils/calculation_helpers.hpp"
+#include <tbb/parallel_sort.h>
 #include "limu/utils/types.hpp"
 #include <algorithm>
 #include <string>
@@ -41,7 +42,10 @@ namespace outlier
     {
         std::vector<T> a(inp.begin(), inp.end());
         const int n = a.size();
-        std::sort(a.begin(), a.end());
+        if (inp.size() < 30)
+            std::sort(a.begin(), a.end());
+        else
+            tbb::parallel_sort(a.begin(), a.end());
 
         if (n == 1)
         {

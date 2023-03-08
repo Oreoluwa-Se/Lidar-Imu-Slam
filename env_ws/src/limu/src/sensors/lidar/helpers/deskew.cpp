@@ -12,11 +12,11 @@ namespace lidar
         const SE3d &start_pose, const SE3d &end_pose)
     {
         const auto twist = utils::delta_pose(start_pose, end_pose);
-
+        const size_t size = frame.points.size();
         // / points are normalized.. 0.0 <-> 1.0
-        utils::Vec3dVector deskewed_points(frame.size());
+        utils::Vec3dVector deskewed_points(size);
         tbb::parallel_for(
-            std::size_t(0), deskewed_points.size(),
+            std::size_t(0), size,
             [&](std::size_t idx)
             {
                 utils::Vec3d point(frame.points[idx].x, frame.points[idx].y, frame.points[idx].z);

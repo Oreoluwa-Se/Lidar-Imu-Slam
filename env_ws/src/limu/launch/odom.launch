@@ -1,0 +1,9 @@
+<?xml version="1.0"?>
+<launch>
+
+    <!--Launch module-->
+    <node pkg="limu" type="odom_run" name="odom_run" output="screen"/>
+
+
+
+</launch>

@@ -1,5 +1,10 @@
 #include "limu/sensors/lidar/frame.hpp"
 #include <numeric>
+namespace
+{
+    constexpr int MIN_SCAN_COUNT = 20;
+}
+
 namespace frame
 {
     void Lidar::initialize(const sensor_msgs::PointCloud2::ConstPtr &msg)
@@ -31,14 +36,13 @@ namespace frame
         double low_bound = iqr_val[0] - IQR_TUCHEY * iqr_val[2];
         double high_bound = iqr_val[1] + IQR_TUCHEY * iqr_val[2];
 
-        size_t inlier_count = 0;
-        for (const auto &distance : point_distance)
+        for (size_t idx = 0; idx < point_distance.size(); idx++)
         {
+            const auto &distance = point_distance[idx];
             if (distance >= low_bound && distance <= high_bound)
             {
-                processed_cloud->points.emplace_back(surface_cloud->points[inlier_count]);
-                time_vec.emplace_back(valid_timestamp[inlier_count]);
-                inlier_count++;
+                processed_cloud->points.emplace_back(surface_cloud->points[idx]);
+                time_vec.emplace_back(valid_timestamp[idx]);
             }
         }
 
@@ -82,7 +86,6 @@ namespace frame
         PointCloud::Ptr &surface_cloud, PointCloud::Ptr &processed_cloud,
         std::vector<double> &valid_timestamp, double &message_time)
     {
-        constexpr int MIN_SCAN_COUNT = 20;
 
         double message_time_ms = message_time * 1000; // convert to ms
         double last_frame_end_time_surf = message_time_ms, last_frame_end_time_processed = message_time_ms;
@@ -121,6 +124,7 @@ namespace frame
                     // update holders
                     processed_buffer.emplace_back(std::move(temp));
                     timestamps.push_back(utils::normalize_timestamps(times));
+
                     accumulated_segment_time.push_back(last_frame_end_time_processed / double(1000)); // sec
 
                     // increment or reset parameters
@@ -211,10 +215,6 @@ namespace frame
             // stores time difference between current point and original message time.
             added_pt.curvature = (point.timestamp - message_time + 0.1) * 1000; // ms
 
-            // skip points with invalid timestamps
-            if (added_pt.curvature < 0)
-                continue;
-
             int layer = point.ring;
             if (!has_offset_time)
             {
@@ -256,7 +256,9 @@ namespace frame
         split_clouds(surface_cloud, processed_cloud, valid_timestamp, message_time);
     }
 
-    void Lidar::set_current_pose_nav(const utils::Vec3d &translation, const Eigen::Quaterniond &quat, const ros::Time &time, std::string &odom_frame, std::string &child_frame)
+    void Lidar::set_current_pose_nav(
+        const utils::Vec3d &translation, const Eigen::Quaterniond &quat,
+        const ros::Time &time, std::string &odom_frame, std::string &child_frame)
     {
 
         current_pose.header.stamp = time;

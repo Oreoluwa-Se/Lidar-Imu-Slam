@@ -41,23 +41,11 @@ namespace utils
     typedef std::tuple<PointCloudXYZI::Ptr, PointCloudXYZI::Ptr> PointCloudXYZIPtrTuple;
 
     struct VoxelHash
-    { // slightly different from previous.
-        size_t operator()(const Voxel &vox) const
+    {
+        size_t operator()(const Voxel &voxel) const
         {
-            // Using the FNV-1a hash
-            constexpr uint32_t offset_basis = 0x811c9dc5;
-            constexpr uint32_t fnv_prime = 0x01000193;
-
-            size_t hash = offset_basis;
-            const uint8_t *byte_ptr = reinterpret_cast<const uint8_t *>(&vox);
-            const uint8_t *end_ptr = byte_ptr + sizeof(Voxel);
-
-            while (byte_ptr < end_ptr)
-            {
-                hash ^= *byte_ptr++;
-                hash ^= fnv_prime;
-            }
-            return hash;
+            const uint32_t *vec = reinterpret_cast<const uint32_t *>(voxel.data());
+            return ((1 << 20) - 1) & (vec[0] * 73856093 ^ vec[1] * 19349663 ^ vec[2] * 83492791);
         }
     };
 }

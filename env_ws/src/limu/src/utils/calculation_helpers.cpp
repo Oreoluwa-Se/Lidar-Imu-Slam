@@ -126,12 +126,10 @@ namespace utils
             return;
         }
 
-        std::for_each(
-            points.begin(), points.end(),
-            [&](auto &point)
-            {
-                point = T * point;
-            });
+        std::transform(
+            points.begin(), points.end(), points.begin(),
+            [&](const auto &point)
+            { return T * point; });
     }
 
     utils::Vec3Tuple get_motion(const SE3d &start_pose, const SE3d &end_pose, double dt)
@@ -139,6 +137,13 @@ namespace utils
         // get twist
         const utils::vector<6> twist = utils::delta_pose(start_pose, end_pose) / dt;
         return {twist.head<3>(), twist.tail<3>()};
+    }
+
+    utils::Voxel get_vox_index(const utils::Vec3d &point, double vox_size)
+    {
+        return utils::Voxel(static_cast<int>(point.x() / vox_size),
+                            static_cast<int>(point.y() / vox_size),
+                            static_cast<int>(point.z() / vox_size));
     }
 
 }

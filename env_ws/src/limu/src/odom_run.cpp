@@ -86,8 +86,7 @@ void Odometry::estimate_lidar_odometry(frame::LidarImuInit::Ptr &meas)
     const auto &deskewed = std::get<0>(icp_output);
     const auto &key_points = std::get<1>(icp_output);
     const auto &pose = std::get<2>(icp_output);
-    std::cout << "Current pose: \n"
-              << pose.matrix() << std::endl;
+
     const utils::Vec3d translation = pose.translation();
     const Eigen::Quaterniond quat = pose.unit_quaternion();
 

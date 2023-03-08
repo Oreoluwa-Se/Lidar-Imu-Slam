@@ -48,5 +48,8 @@ namespace utils
     // ADHOC
     inline double square(double x) { return x * x; }
 
+    // Helper for calculating voxel
+    utils::Voxel get_vox_index(const utils::Vec3d &point, double vox_size);
+
 }
 #endif

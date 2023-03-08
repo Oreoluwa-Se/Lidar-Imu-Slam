@@ -1,0 +1,7 @@
+[01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/src/sensors/lidar/helpers/registration.cpp:[m[K In lambda function:
+[01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/src/sensors/lidar/helpers/registration.cpp:86:20:[m[K [01;31m[Kerror: [m[Kinconsistent types ‘[01m[Kdouble[m[K’ and ‘[01m[Kint[m[K’ deduced for lambda return type
+   86 |             return [01;31m[K0[m[K;
+      |                    [01;31m[K^[m[K
+make[2]: *** [CMakeFiles/limu.dir/build.make:115: CMakeFiles/limu.dir/src/sensors/lidar/helpers/registration.cpp.o] Error 1
+make[1]: *** [CMakeFiles/Makefile2:225: CMakeFiles/limu.dir/all] Error 2
+make: *** [Makefile:141: all] Error 2
