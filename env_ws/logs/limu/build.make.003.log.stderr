@@ -1,221 +1,117 @@
-[01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/src/sensors/lidar/helpers/voxel_hash_map.cpp:[m[K In lambda function:
-[01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/src/sensors/lidar/helpers/voxel_hash_map.cpp:178:26:[m[K [01;31m[Kerror: [m[Kno match for ‘[01m[Koperator*[m[K’ (operand type is ‘[01m[Ktsl::detail_robin_hash::robin_hash<std::pair<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock>, tsl::robin_map<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock, utils::VoxelHash>::KeySelect, tsl::robin_map<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock, utils::VoxelHash>::ValueSelect, utils::VoxelHash, std::equal_to<Eigen::Matrix<int, 3, 1> >, std::allocator<std::pair<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock> >, false, tsl::rh::power_of_two_growth_policy<2> >::robin_iterator<false>::value_type[m[K’ {aka ‘[01m[Kconst std::pair<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock>[m[K’})
-  178 |                     if (([01;31m[K**it[m[K - origin_vox).squaredNorm() > max_dist_sq)
-      |                          [01;31m[K^~~~[m[K
-In file included from [01m[K/usr/include/boost/config/no_tr1/complex.hpp:21[m[K,
-                 from [01m[K/usr/include/boost/math/policies/error_handling.hpp:17[m[K,
+In file included from [01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/include/limu/sensors/sync_frame.hpp:5[m[K,
+                 from [01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/include/limu/kalman/ekf.hpp:5[m[K,
+                 from [01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/src/kalman/ekf.cpp:1[m[K:
+[01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/include/limu/sensors/imu/frame.hpp:52:45:[m[K [01;31m[Kerror: [m[K‘[01m[Kkalman[m[K’ has not been declared
+   52 |         void initialize_propagate_undistort([01;31m[Kkalman[m[K::EKF::Ptr &ekf, LidarImuInit::Ptr &meas);
+      |                                             [01;31m[K^~~~~~[m[K
+[01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/include/limu/sensors/imu/frame.hpp:52:62:[m[K [01;31m[Kerror: [m[Kexpected ‘[01m[K,[m[K’ or ‘[01m[K...[m[K’ before ‘[01m[K&[m[K’ token
+   52 |         void initialize_propagate_undistort(kalman::EKF::Ptr [01;31m[K&[m[Kekf, LidarImuInit::Ptr &meas);
+      |                                                              [01;31m[K^[m[K
+[01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/include/limu/sensors/imu/frame.hpp:56:19:[m[K [01;31m[Kerror: [m[K‘[01m[Kkalman[m[K’ has not been declared
+   56 |         void init([01;31m[Kkalman[m[K::EKF::Ptr &ekf, LidarImuInit::Ptr &meas);
+      |                   [01;31m[K^~~~~~[m[K
+[01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/include/limu/sensors/imu/frame.hpp:56:36:[m[K [01;31m[Kerror: [m[Kexpected ‘[01m[K,[m[K’ or ‘[01m[K...[m[K’ before ‘[01m[K&[m[K’ token
+   56 |         void init(kalman::EKF::Ptr [01;31m[K&[m[Kekf, LidarImuInit::Ptr &meas);
+      |                                    [01;31m[K^[m[K
+In file included from [01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/include/limu/sensors/imu/frame.hpp:9[m[K,
+                 from [01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/include/limu/sensors/sync_frame.hpp:5[m[K,
+                 from [01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/src/odom_run.hpp:9[m[K,
+                 from [01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/src/odom_run.cpp:1[m[K:
+[01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/include/limu/kalman/ekf.hpp:160:50:[m[K [01;31m[Kerror: [m[K‘[01m[Kframe::LidarImuInit[m[K’ has not been declared
+  160 |         void motion_compensation_with_imu(frame::[01;31m[KLidarImuInit[m[K::Ptr &meas);
+      |                                                  [01;31m[K^~~~~~~~~~~~[m[K
+[01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/include/limu/kalman/ekf.hpp:160:68:[m[K [01;31m[Kerror: [m[Kexpected ‘[01m[K,[m[K’ or ‘[01m[K...[m[K’ before ‘[01m[K&[m[K’ token
+  160 |         void motion_compensation_with_imu(frame::LidarImuInit::Ptr [01;31m[K&[m[Kmeas);
+      |                                                                    [01;31m[K^[m[K
+In file included from [01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/include/limu/sensors/sync_frame.hpp:5[m[K,
+                 from [01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/src/odom_run.hpp:9[m[K,
+                 from [01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/src/odom_run.cpp:1[m[K:
+[01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/include/limu/sensors/imu/frame.hpp:52:68:[m[K [01;31m[Kerror: [m[K‘[01m[KLidarImuInit[m[K’ has not been declared
+   52 |         void initialize_propagate_undistort(kalman::EKF::Ptr &ekf, [01;31m[KLidarImuInit[m[K::Ptr &meas);
+      |                                                                    [01;31m[K^~~~~~~~~~~~[m[K
+[01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/include/limu/sensors/imu/frame.hpp:52:86:[m[K [01;31m[Kerror: [m[Kexpected ‘[01m[K,[m[K’ or ‘[01m[K...[m[K’ before ‘[01m[K&[m[K’ token
+   52 |         void initialize_propagate_undistort(kalman::EKF::Ptr &ekf, LidarImuInit::Ptr [01;31m[K&[m[Kmeas);
+      |                                                                                      [01;31m[K^[m[K
+[01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/include/limu/sensors/imu/frame.hpp:56:42:[m[K [01;31m[Kerror: [m[K‘[01m[KLidarImuInit[m[K’ has not been declared
+   56 |         void init(kalman::EKF::Ptr &ekf, [01;31m[KLidarImuInit[m[K::Ptr &meas);
+      |                                          [01;31m[K^~~~~~~~~~~~[m[K
+[01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/include/limu/sensors/imu/frame.hpp:56:60:[m[K [01;31m[Kerror: [m[Kexpected ‘[01m[K,[m[K’ or ‘[01m[K...[m[K’ before ‘[01m[K&[m[K’ token
+   56 |         void init(kalman::EKF::Ptr &ekf, LidarImuInit::Ptr [01;31m[K&[m[Kmeas);
+      |                                                            [01;31m[K^[m[K
+[01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/src/odom_run.cpp:[m[K In member function ‘[01m[Kvoid Odometry::setup_ekf(ros::NodeHandle&)[m[K’:
+[01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/src/odom_run.cpp:37:42:[m[K [01;31m[Kerror: [m[Kno match for ‘[01m[Koperator=[m[K’ (operand types are ‘[01m[Kkalman::EKF::Ptr[m[K’ {aka ‘[01m[Kstd::unique_ptr<kalman::EKF>[m[K’} and ‘[01m[Kstd::shared_ptr<kalman::EKF>[m[K’)
+   37 |     ekf = std::make_shared<kalman::EKF>(p[01;31m[K)[m[K;
+      |                                          [01;31m[K^[m[K
+In file included from [01m[K/usr/include/c++/9/bits/locale_conv.h:41[m[K,
+                 from [01m[K/usr/include/c++/9/locale:43[m[K,
+                 from [01m[K/usr/include/c++/9/iomanip:43[m[K,
+                 from [01m[K/usr/include/boost/math/policies/error_handling.hpp:12[m[K,
                  from [01m[K/usr/include/boost/math/special_functions/round.hpp:14[m[K,
                  from [01m[K/opt/ros/noetic/include/ros/time.h:58[m[K,
-                 from [01m[K/opt/ros/noetic/include/ros/serialization.h:34[m[K,
-                 from [01m[K/opt/ros/noetic/include/sensor_msgs/PointCloud2.h:14[m[K,
-                 from [01m[K/opt/ros/noetic/include/sensor_msgs/point_cloud2_iterator.h:38[m[K,
-                 from [01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/include/limu/utils/calculation_helpers.hpp:4[m[K,
-                 from [01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/include/common.hpp:4[m[K,
-                 from [01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/include/limu/sensors/lidar/helpers/voxel_block.hpp:5[m[K,
-                 from [01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/include/limu/sensors/lidar/helpers/voxel_hash_map.hpp:6[m[K,
-                 from [01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/src/sensors/lidar/helpers/voxel_hash_map.cpp:1[m[K:
-[01m[K/usr/include/c++/9/complex:391:5:[m[K [01;36m[Knote: [m[Kcandidate: ‘[01m[Ktemplate<class _Tp> std::complex<_Tp> std::operator*(const std::complex<_Tp>&, const std::complex<_Tp>&)[m[K’
-  391 |     [01;36m[Koperator[m[K*(const complex<_Tp>& __x, const complex<_Tp>& __y)
-      |     [01;36m[K^~~~~~~~[m[K
-[01m[K/usr/include/c++/9/complex:391:5:[m[K [01;36m[Knote: [m[K  template argument deduction/substitution failed:
-[01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/src/sensors/lidar/helpers/voxel_hash_map.cpp:178:28:[m[K [01;36m[Knote: [m[K  ‘[01m[Ktsl::detail_robin_hash::robin_hash<std::pair<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock>, tsl::robin_map<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock, utils::VoxelHash>::KeySelect, tsl::robin_map<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock, utils::VoxelHash>::ValueSelect, utils::VoxelHash, std::equal_to<Eigen::Matrix<int, 3, 1> >, std::allocator<std::pair<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock> >, false, tsl::rh::power_of_two_growth_policy<2> >::robin_iterator<false>::value_type[m[K’ {aka ‘[01m[Kconst std::pair<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock>[m[K’} is not derived from ‘[01m[Kconst std::complex<_Tp>[m[K’
-  178 |                     if ((**[01;36m[Kit[m[K - origin_vox).squaredNorm() > max_dist_sq)
-      |                            [01;36m[K^~[m[K
-In file included from [01m[K/usr/include/boost/config/no_tr1/complex.hpp:21[m[K,
-                 from [01m[K/usr/include/boost/math/policies/error_handling.hpp:17[m[K,
+                 from [01m[K/opt/ros/noetic/include/ros/ros.h:38[m[K,
+                 from [01m[K/opt/ros/noetic/include/tf2_ros/static_transform_broadcaster.h:38[m[K,
+                 from [01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/src/odom_run.hpp:4[m[K,
+                 from [01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/src/odom_run.cpp:1[m[K:
+[01m[K/usr/include/c++/9/bits/unique_ptr.h:305:7:[m[K [01;36m[Knote: [m[Kcandidate: ‘[01m[Kstd::unique_ptr<_Tp, _Dp>& std::unique_ptr<_Tp, _Dp>::operator=(std::unique_ptr<_Tp, _Dp>&&) [with _Tp = kalman::EKF; _Dp = std::default_delete<kalman::EKF>][m[K’
+  305 |       [01;36m[Koperator[m[K=(unique_ptr&& __u) noexcept
+      |       [01;36m[K^~~~~~~~[m[K
+[01m[K/usr/include/c++/9/bits/unique_ptr.h:305:30:[m[K [01;36m[Knote: [m[K  no known conversion for argument 1 from ‘[01m[Kstd::shared_ptr<kalman::EKF>[m[K’ to ‘[01m[Kstd::unique_ptr<kalman::EKF>&&[m[K’
+  305 |       operator=([01;36m[Kunique_ptr&& __u[m[K) noexcept
+      |                 [01;36m[K~~~~~~~~~~~~~^~~[m[K
+[01m[K/usr/include/c++/9/bits/unique_ptr.h:325:2:[m[K [01;36m[Knote: [m[Kcandidate: ‘[01m[Ktemplate<class _Up, class _Ep> typename std::enable_if<std::__and_<std::__and_<std::is_convertible<typename std::unique_ptr<_Up, _Ep>::pointer, typename std::__uniq_ptr_impl<_Tp, _Dp>::pointer>, std::__not_<std::is_array<_Up> > >, std::is_assignable<_T2&, _U2&&> >::value, std::unique_ptr<_Tp, _Dp>&>::type std::unique_ptr<_Tp, _Dp>::operator=(std::unique_ptr<_Up, _Ep>&&) [with _Up = _Up; _Ep = _Ep; _Tp = kalman::EKF; _Dp = std::default_delete<kalman::EKF>][m[K’
+  325 |  [01;36m[Koperator[m[K=(unique_ptr<_Up, _Ep>&& __u) noexcept
+      |  [01;36m[K^~~~~~~~[m[K
+[01m[K/usr/include/c++/9/bits/unique_ptr.h:325:2:[m[K [01;36m[Knote: [m[K  template argument deduction/substitution failed:
+[01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/src/odom_run.cpp:37:42:[m[K [01;36m[Knote: [m[K  ‘[01m[Kstd::shared_ptr<kalman::EKF>[m[K’ is not derived from ‘[01m[Kstd::unique_ptr<_Tp, _Dp>[m[K’
+   37 |     ekf = std::make_shared<kalman::EKF>(p[01;36m[K)[m[K;
+      |                                          [01;36m[K^[m[K
+In file included from [01m[K/usr/include/c++/9/bits/locale_conv.h:41[m[K,
+                 from [01m[K/usr/include/c++/9/locale:43[m[K,
+                 from [01m[K/usr/include/c++/9/iomanip:43[m[K,
+                 from [01m[K/usr/include/boost/math/policies/error_handling.hpp:12[m[K,
                  from [01m[K/usr/include/boost/math/special_functions/round.hpp:14[m[K,
                  from [01m[K/opt/ros/noetic/include/ros/time.h:58[m[K,
-                 from [01m[K/opt/ros/noetic/include/ros/serialization.h:34[m[K,
-                 from [01m[K/opt/ros/noetic/include/sensor_msgs/PointCloud2.h:14[m[K,
-                 from [01m[K/opt/ros/noetic/include/sensor_msgs/point_cloud2_iterator.h:38[m[K,
-                 from [01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/include/limu/utils/calculation_helpers.hpp:4[m[K,
-                 from [01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/include/common.hpp:4[m[K,
-                 from [01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/include/limu/sensors/lidar/helpers/voxel_block.hpp:5[m[K,
-                 from [01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/include/limu/sensors/lidar/helpers/voxel_hash_map.hpp:6[m[K,
-                 from [01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/src/sensors/lidar/helpers/voxel_hash_map.cpp:1[m[K:
-[01m[K/usr/include/c++/9/complex:400:5:[m[K [01;36m[Knote: [m[Kcandidate: ‘[01m[Ktemplate<class _Tp> std::complex<_Tp> std::operator*(const std::complex<_Tp>&, const _Tp&)[m[K’
-  400 |     [01;36m[Koperator[m[K*(const complex<_Tp>& __x, const _Tp& __y)
-      |     [01;36m[K^~~~~~~~[m[K
-[01m[K/usr/include/c++/9/complex:400:5:[m[K [01;36m[Knote: [m[K  template argument deduction/substitution failed:
-[01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/src/sensors/lidar/helpers/voxel_hash_map.cpp:178:28:[m[K [01;36m[Knote: [m[K  ‘[01m[Ktsl::detail_robin_hash::robin_hash<std::pair<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock>, tsl::robin_map<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock, utils::VoxelHash>::KeySelect, tsl::robin_map<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock, utils::VoxelHash>::ValueSelect, utils::VoxelHash, std::equal_to<Eigen::Matrix<int, 3, 1> >, std::allocator<std::pair<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock> >, false, tsl::rh::power_of_two_growth_policy<2> >::robin_iterator<false>::value_type[m[K’ {aka ‘[01m[Kconst std::pair<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock>[m[K’} is not derived from ‘[01m[Kconst std::complex<_Tp>[m[K’
-  178 |                     if ((**[01;36m[Kit[m[K - origin_vox).squaredNorm() > max_dist_sq)
-      |                            [01;36m[K^~[m[K
-In file included from [01m[K/usr/include/boost/config/no_tr1/complex.hpp:21[m[K,
-                 from [01m[K/usr/include/boost/math/policies/error_handling.hpp:17[m[K,
-                 from [01m[K/usr/include/boost/math/special_functions/round.hpp:14[m[K,
-                 from [01m[K/opt/ros/noetic/include/ros/time.h:58[m[K,
-                 from [01m[K/opt/ros/noetic/include/ros/serialization.h:34[m[K,
-                 from [01m[K/opt/ros/noetic/include/sensor_msgs/PointCloud2.h:14[m[K,
-                 from [01m[K/opt/ros/noetic/include/sensor_msgs/point_cloud2_iterator.h:38[m[K,
-                 from [01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/include/limu/utils/calculation_helpers.hpp:4[m[K,
-                 from [01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/include/common.hpp:4[m[K,
-                 from [01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/include/limu/sensors/lidar/helpers/voxel_block.hpp:5[m[K,
-                 from [01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/include/limu/sensors/lidar/helpers/voxel_hash_map.hpp:6[m[K,
-                 from [01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/src/sensors/lidar/helpers/voxel_hash_map.cpp:1[m[K:
-[01m[K/usr/include/c++/9/complex:409:5:[m[K [01;36m[Knote: [m[Kcandidate: ‘[01m[Ktemplate<class _Tp> std::complex<_Tp> std::operator*(const _Tp&, const std::complex<_Tp>&)[m[K’
-  409 |     [01;36m[Koperator[m[K*(const _Tp& __x, const complex<_Tp>& __y)
-      |     [01;36m[K^~~~~~~~[m[K
-[01m[K/usr/include/c++/9/complex:409:5:[m[K [01;36m[Knote: [m[K  template argument deduction/substitution failed:
-[01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/src/sensors/lidar/helpers/voxel_hash_map.cpp:178:28:[m[K [01;36m[Knote: [m[K  candidate expects 2 arguments, 1 provided
-  178 |                     if ((**[01;36m[Kit[m[K - origin_vox).squaredNorm() > max_dist_sq)
-      |                            [01;36m[K^~[m[K
-In file included from [01m[K/usr/include/eigen3/Eigen/Core:487[m[K,
-                 from [01m[K/usr/include/eigen3/Eigen/Dense:1[m[K,
-                 from [01m[K/usr/local/include/sophus/rotation_matrix.hpp:6[m[K,
-                 from [01m[K/usr/local/include/sophus/so3.hpp:6[m[K,
-                 from [01m[K/usr/local/include/sophus/se3.hpp:6[m[K,
-                 from [01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/include/limu/utils/calculation_helpers.hpp:6[m[K,
-                 from [01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/include/common.hpp:4[m[K,
-                 from [01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/include/limu/sensors/lidar/helpers/voxel_block.hpp:5[m[K,
-                 from [01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/include/limu/sensors/lidar/helpers/voxel_hash_map.hpp:6[m[K,
-                 from [01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/src/sensors/lidar/helpers/voxel_hash_map.cpp:1[m[K:
-[01m[K/usr/include/eigen3/Eigen/src/Core/PermutationMatrix.h:543:1:[m[K [01;36m[Knote: [m[Kcandidate: ‘[01m[Ktemplate<class MatrixDerived, class PermutationDerived> const Eigen::Product<MatrixDerived, PermutationDerived, 2> Eigen::operator*(const Eigen::MatrixBase<Derived>&, const Eigen::PermutationBase<PermutationDerived>&)[m[K’
-  543 | [01;36m[Koperator[m[K*(const MatrixBase<MatrixDerived> &matrix,
-      | [01;36m[K^~~~~~~~[m[K
-[01m[K/usr/include/eigen3/Eigen/src/Core/PermutationMatrix.h:543:1:[m[K [01;36m[Knote: [m[K  template argument deduction/substitution failed:
-[01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/src/sensors/lidar/helpers/voxel_hash_map.cpp:178:28:[m[K [01;36m[Knote: [m[K  ‘[01m[Ktsl::detail_robin_hash::robin_hash<std::pair<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock>, tsl::robin_map<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock, utils::VoxelHash>::KeySelect, tsl::robin_map<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock, utils::VoxelHash>::ValueSelect, utils::VoxelHash, std::equal_to<Eigen::Matrix<int, 3, 1> >, std::allocator<std::pair<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock> >, false, tsl::rh::power_of_two_growth_policy<2> >::robin_iterator<false>::value_type[m[K’ {aka ‘[01m[Kconst std::pair<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock>[m[K’} is not derived from ‘[01m[Kconst Eigen::MatrixBase<Derived>[m[K’
-  178 |                     if ((**[01;36m[Kit[m[K - origin_vox).squaredNorm() > max_dist_sq)
-      |                            [01;36m[K^~[m[K
-In file included from [01m[K/usr/include/eigen3/Eigen/Core:487[m[K,
-                 from [01m[K/usr/include/eigen3/Eigen/Dense:1[m[K,
-                 from [01m[K/usr/local/include/sophus/rotation_matrix.hpp:6[m[K,
-                 from [01m[K/usr/local/include/sophus/so3.hpp:6[m[K,
-                 from [01m[K/usr/local/include/sophus/se3.hpp:6[m[K,
-                 from [01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/include/limu/utils/calculation_helpers.hpp:6[m[K,
-                 from [01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/include/common.hpp:4[m[K,
-                 from [01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/include/limu/sensors/lidar/helpers/voxel_block.hpp:5[m[K,
-                 from [01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/include/limu/sensors/lidar/helpers/voxel_hash_map.hpp:6[m[K,
-                 from [01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/src/sensors/lidar/helpers/voxel_hash_map.cpp:1[m[K:
-[01m[K/usr/include/eigen3/Eigen/src/Core/PermutationMatrix.h:555:1:[m[K [01;36m[Knote: [m[Kcandidate: ‘[01m[Ktemplate<class PermutationDerived, class MatrixDerived> const Eigen::Product<MatrixDerived, PermutationDerived, 2> Eigen::operator*(const Eigen::PermutationBase<PermutationDerived>&, const Eigen::MatrixBase<U>&)[m[K’
-  555 | [01;36m[Koperator[m[K*(const PermutationBase<PermutationDerived> &permutation,
-      | [01;36m[K^~~~~~~~[m[K
-[01m[K/usr/include/eigen3/Eigen/src/Core/PermutationMatrix.h:555:1:[m[K [01;36m[Knote: [m[K  template argument deduction/substitution failed:
-[01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/src/sensors/lidar/helpers/voxel_hash_map.cpp:178:28:[m[K [01;36m[Knote: [m[K  ‘[01m[Ktsl::detail_robin_hash::robin_hash<std::pair<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock>, tsl::robin_map<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock, utils::VoxelHash>::KeySelect, tsl::robin_map<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock, utils::VoxelHash>::ValueSelect, utils::VoxelHash, std::equal_to<Eigen::Matrix<int, 3, 1> >, std::allocator<std::pair<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock> >, false, tsl::rh::power_of_two_growth_policy<2> >::robin_iterator<false>::value_type[m[K’ {aka ‘[01m[Kconst std::pair<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock>[m[K’} is not derived from ‘[01m[Kconst Eigen::PermutationBase<PermutationDerived>[m[K’
-  178 |                     if ((**[01;36m[Kit[m[K - origin_vox).squaredNorm() > max_dist_sq)
-      |                            [01;36m[K^~[m[K
-In file included from [01m[K/usr/include/eigen3/Eigen/Core:488[m[K,
-                 from [01m[K/usr/include/eigen3/Eigen/Dense:1[m[K,
-                 from [01m[K/usr/local/include/sophus/rotation_matrix.hpp:6[m[K,
-                 from [01m[K/usr/local/include/sophus/so3.hpp:6[m[K,
-                 from [01m[K/usr/local/include/sophus/se3.hpp:6[m[K,
-                 from [01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/include/limu/utils/calculation_helpers.hpp:6[m[K,
-                 from [01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/include/common.hpp:4[m[K,
-                 from [01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/include/limu/sensors/lidar/helpers/voxel_block.hpp:5[m[K,
-                 from [01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/include/limu/sensors/lidar/helpers/voxel_hash_map.hpp:6[m[K,
-                 from [01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/src/sensors/lidar/helpers/voxel_hash_map.cpp:1[m[K:
-[01m[K/usr/include/eigen3/Eigen/src/Core/Transpositions.h:338:1:[m[K [01;36m[Knote: [m[Kcandidate: ‘[01m[Ktemplate<class MatrixDerived, class TranspositionsDerived> const Eigen::Product<MatrixDerived, PermutationDerived, 2> Eigen::operator*(const Eigen::MatrixBase<Derived>&, const Eigen::TranspositionsBase<TranspositionsDerived>&)[m[K’
-  338 | [01;36m[Koperator[m[K*(const MatrixBase<MatrixDerived> &matrix,
-      | [01;36m[K^~~~~~~~[m[K
-[01m[K/usr/include/eigen3/Eigen/src/Core/Transpositions.h:338:1:[m[K [01;36m[Knote: [m[K  template argument deduction/substitution failed:
-[01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/src/sensors/lidar/helpers/voxel_hash_map.cpp:178:28:[m[K [01;36m[Knote: [m[K  ‘[01m[Ktsl::detail_robin_hash::robin_hash<std::pair<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock>, tsl::robin_map<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock, utils::VoxelHash>::KeySelect, tsl::robin_map<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock, utils::VoxelHash>::ValueSelect, utils::VoxelHash, std::equal_to<Eigen::Matrix<int, 3, 1> >, std::allocator<std::pair<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock> >, false, tsl::rh::power_of_two_growth_policy<2> >::robin_iterator<false>::value_type[m[K’ {aka ‘[01m[Kconst std::pair<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock>[m[K’} is not derived from ‘[01m[Kconst Eigen::MatrixBase<Derived>[m[K’
-  178 |                     if ((**[01;36m[Kit[m[K - origin_vox).squaredNorm() > max_dist_sq)
-      |                            [01;36m[K^~[m[K
-In file included from [01m[K/usr/include/eigen3/Eigen/Core:488[m[K,
-                 from [01m[K/usr/include/eigen3/Eigen/Dense:1[m[K,
-                 from [01m[K/usr/local/include/sophus/rotation_matrix.hpp:6[m[K,
-                 from [01m[K/usr/local/include/sophus/so3.hpp:6[m[K,
-                 from [01m[K/usr/local/include/sophus/se3.hpp:6[m[K,
-                 from [01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/include/limu/utils/calculation_helpers.hpp:6[m[K,
-                 from [01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/include/common.hpp:4[m[K,
-                 from [01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/include/limu/sensors/lidar/helpers/voxel_block.hpp:5[m[K,
-                 from [01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/include/limu/sensors/lidar/helpers/voxel_hash_map.hpp:6[m[K,
-                 from [01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/src/sensors/lidar/helpers/voxel_hash_map.cpp:1[m[K:
-[01m[K/usr/include/eigen3/Eigen/src/Core/Transpositions.h:350:1:[m[K [01;36m[Knote: [m[Kcandidate: ‘[01m[Ktemplate<class TranspositionsDerived, class MatrixDerived> const Eigen::Product<MatrixDerived, PermutationDerived, 2> Eigen::operator*(const Eigen::TranspositionsBase<TranspositionsDerived>&, const Eigen::MatrixBase<U>&)[m[K’
-  350 | [01;36m[Koperator[m[K*(const TranspositionsBase<TranspositionsDerived> &transpositions,
-      | [01;36m[K^~~~~~~~[m[K
-[01m[K/usr/include/eigen3/Eigen/src/Core/Transpositions.h:350:1:[m[K [01;36m[Knote: [m[K  template argument deduction/substitution failed:
-[01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/src/sensors/lidar/helpers/voxel_hash_map.cpp:178:28:[m[K [01;36m[Knote: [m[K  ‘[01m[Ktsl::detail_robin_hash::robin_hash<std::pair<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock>, tsl::robin_map<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock, utils::VoxelHash>::KeySelect, tsl::robin_map<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock, utils::VoxelHash>::ValueSelect, utils::VoxelHash, std::equal_to<Eigen::Matrix<int, 3, 1> >, std::allocator<std::pair<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock> >, false, tsl::rh::power_of_two_growth_policy<2> >::robin_iterator<false>::value_type[m[K’ {aka ‘[01m[Kconst std::pair<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock>[m[K’} is not derived from ‘[01m[Kconst Eigen::TranspositionsBase<TranspositionsDerived>[m[K’
-  178 |                     if ((**[01;36m[Kit[m[K - origin_vox).squaredNorm() > max_dist_sq)
-      |                            [01;36m[K^~[m[K
-In file included from [01m[K/usr/include/eigen3/Eigen/Householder:24[m[K,
-                 from [01m[K/usr/include/eigen3/Eigen/QR:17[m[K,
-                 from [01m[K/usr/include/eigen3/Eigen/Dense:4[m[K,
-                 from [01m[K/usr/local/include/sophus/rotation_matrix.hpp:6[m[K,
-                 from [01m[K/usr/local/include/sophus/so3.hpp:6[m[K,
-                 from [01m[K/usr/local/include/sophus/se3.hpp:6[m[K,
-                 from [01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/include/limu/utils/calculation_helpers.hpp:6[m[K,
-                 from [01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/include/common.hpp:4[m[K,
-                 from [01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/include/limu/sensors/lidar/helpers/voxel_block.hpp:5[m[K,
-                 from [01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/include/limu/sensors/lidar/helpers/voxel_hash_map.hpp:6[m[K,
-                 from [01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/src/sensors/lidar/helpers/voxel_hash_map.cpp:1[m[K:
-[01m[K/usr/include/eigen3/Eigen/src/Householder/HouseholderSequence.h:438:99:[m[K [01;36m[Knote: [m[Kcandidate: ‘[01m[Ktemplate<class OtherDerived, class VectorsType, class CoeffsType, int Side> typename Eigen::internal::matrix_type_times_scalar_type<typename VectorsType::Scalar, OtherDerived>::Type Eigen::operator*(const Eigen::MatrixBase<Derived>&, const Eigen::HouseholderSequence<VectorsType, CoeffsType, Side>&)[m[K’
-  438 | typename internal::matrix_type_times_scalar_type<typename VectorsType::Scalar,OtherDerived>::Type [01;36m[Koperator[m[K*(const MatrixBase<OtherDerived>& other, const HouseholderSequence<VectorsType,CoeffsType,Side>& h)
-      |                                                                                                   [01;36m[K^~~~~~~~[m[K
-[01m[K/usr/include/eigen3/Eigen/src/Householder/HouseholderSequence.h:438:99:[m[K [01;36m[Knote: [m[K  template argument deduction/substitution failed:
-[01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/src/sensors/lidar/helpers/voxel_hash_map.cpp:178:28:[m[K [01;36m[Knote: [m[K  ‘[01m[Ktsl::detail_robin_hash::robin_hash<std::pair<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock>, tsl::robin_map<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock, utils::VoxelHash>::KeySelect, tsl::robin_map<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock, utils::VoxelHash>::ValueSelect, utils::VoxelHash, std::equal_to<Eigen::Matrix<int, 3, 1> >, std::allocator<std::pair<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock> >, false, tsl::rh::power_of_two_growth_policy<2> >::robin_iterator<false>::value_type[m[K’ {aka ‘[01m[Kconst std::pair<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock>[m[K’} is not derived from ‘[01m[Kconst Eigen::MatrixBase<Derived>[m[K’
-  178 |                     if ((**[01;36m[Kit[m[K - origin_vox).squaredNorm() > max_dist_sq)
-      |                            [01;36m[K^~[m[K
-In file included from [01m[K/usr/include/eigen3/Eigen/Geometry:46[m[K,
-                 from [01m[K/usr/include/eigen3/Eigen/Dense:6[m[K,
-                 from [01m[K/usr/local/include/sophus/rotation_matrix.hpp:6[m[K,
-                 from [01m[K/usr/local/include/sophus/so3.hpp:6[m[K,
-                 from [01m[K/usr/local/include/sophus/se3.hpp:6[m[K,
-                 from [01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/include/limu/utils/calculation_helpers.hpp:6[m[K,
-                 from [01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/include/common.hpp:4[m[K,
-                 from [01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/include/limu/sensors/lidar/helpers/voxel_block.hpp:5[m[K,
-                 from [01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/include/limu/sensors/lidar/helpers/voxel_hash_map.hpp:6[m[K,
-                 from [01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/src/sensors/lidar/helpers/voxel_hash_map.cpp:1[m[K:
-[01m[K/usr/include/eigen3/Eigen/src/Geometry/Scaling.h:117:1:[m[K [01;36m[Knote: [m[Kcandidate: ‘[01m[Ktemplate<class Derived, class Scalar> Eigen::CwiseBinaryOp<Eigen::internal::scalar_product_op<typename Eigen::internal::traits<T>::Scalar, Scalar>, const Derived, const typename Eigen::internal::plain_constant_type<Expr, Scalar>::type> Eigen::operator*(const Eigen::MatrixBase<Derived>&, const Eigen::UniformScaling<Scalar>&)[m[K’
-  117 | [01;36m[Koperator[m[K*(const MatrixBase<Derived>& matrix, const UniformScaling<Scalar>& s)
-      | [01;36m[K^~~~~~~~[m[K
-[01m[K/usr/include/eigen3/Eigen/src/Geometry/Scaling.h:117:1:[m[K [01;36m[Knote: [m[K  template argument deduction/substitution failed:
-[01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/src/sensors/lidar/helpers/voxel_hash_map.cpp:178:28:[m[K [01;36m[Knote: [m[K  ‘[01m[Ktsl::detail_robin_hash::robin_hash<std::pair<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock>, tsl::robin_map<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock, utils::VoxelHash>::KeySelect, tsl::robin_map<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock, utils::VoxelHash>::ValueSelect, utils::VoxelHash, std::equal_to<Eigen::Matrix<int, 3, 1> >, std::allocator<std::pair<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock> >, false, tsl::rh::power_of_two_growth_policy<2> >::robin_iterator<false>::value_type[m[K’ {aka ‘[01m[Kconst std::pair<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock>[m[K’} is not derived from ‘[01m[Kconst Eigen::MatrixBase<Derived>[m[K’
-  178 |                     if ((**[01;36m[Kit[m[K - origin_vox).squaredNorm() > max_dist_sq)
-      |                            [01;36m[K^~[m[K
-In file included from [01m[K/usr/include/eigen3/Eigen/Core:88[m[K,
-                 from [01m[K/usr/include/eigen3/Eigen/Dense:1[m[K,
-                 from [01m[K/usr/local/include/sophus/rotation_matrix.hpp:6[m[K,
-                 from [01m[K/usr/local/include/sophus/so3.hpp:6[m[K,
-                 from [01m[K/usr/local/include/sophus/se3.hpp:6[m[K,
-                 from [01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/include/limu/utils/calculation_helpers.hpp:6[m[K,
-                 from [01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/include/common.hpp:4[m[K,
-                 from [01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/include/limu/sensors/lidar/helpers/voxel_block.hpp:5[m[K,
-                 from [01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/include/limu/sensors/lidar/helpers/voxel_hash_map.hpp:6[m[K,
-                 from [01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/src/sensors/lidar/helpers/voxel_hash_map.cpp:1[m[K:
-[01m[K/usr/include/eigen3/Eigen/src/plugins/CommonCwiseBinaryOps.h:50:1:[m[K [01;36m[Knote: [m[Kcandidate: ‘[01m[Ktemplate<class T> typename Eigen::internal::enable_if<true, const Eigen::CwiseBinaryOp<Eigen::internal::scalar_product_op<typename Eigen::internal::promote_scalar_arg<int, T, Eigen::internal::has_ReturnType<Eigen::ScalarBinaryOpTraits<T, int, Eigen::internal::scalar_product_op<T, int> > >::value>::type, int>, const typename Eigen::internal::plain_constant_type<Eigen::Matrix<int, 3, 1>, typename Eigen::internal::promote_scalar_arg<int, T, Eigen::internal::has_ReturnType<Eigen::ScalarBinaryOpTraits<T, int, Eigen::internal::scalar_product_op<T, int> > >::value>::type>::type, const Eigen::Matrix<int, 3, 1> > >::type Eigen::operator*(const T&, const StorageBaseType&)[m[K’
-   50 | [01;36m[KEIGEN_MAKE_SCALAR_BINARY_OP[m[K(operator*,product)
-      | [01;36m[K^~~~~~~~~~~~~~~~~~~~~~~~~~~[m[K
-[01m[K/usr/include/eigen3/Eigen/src/plugins/CommonCwiseBinaryOps.h:50:1:[m[K [01;36m[Knote: [m[K  template argument deduction/substitution failed:
-[01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/src/sensors/lidar/helpers/voxel_hash_map.cpp:178:28:[m[K [01;36m[Knote: [m[K  candidate expects 2 arguments, 1 provided
-  178 |                     if ((**[01;36m[Kit[m[K - origin_vox).squaredNorm() > max_dist_sq)
-      |                            [01;36m[K^~[m[K
-In file included from [01m[K/usr/include/tbb/concurrent_vector.h:27[m[K,
-                 from [01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/src/sensors/lidar/helpers/voxel_hash_map.cpp:2[m[K:
-/usr/include/tbb/blocked_range.h: In instantiation of ‘[01m[Kbool tbb::blocked_range<Value>::empty() const [with Value = tsl::detail_robin_hash::robin_hash<std::pair<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock>, tsl::robin_map<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock, utils::VoxelHash>::KeySelect, tsl::robin_map<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock, utils::VoxelHash>::ValueSelect, utils::VoxelHash, std::equal_to<Eigen::Matrix<int, 3, 1> >, std::allocator<std::pair<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock> >, false, tsl::rh::power_of_two_growth_policy<2> >::robin_iterator<false>][m[K’:
-[01m[K/usr/include/tbb/parallel_for.h:84:17:[m[K   required from ‘[01m[Kstatic void tbb::interface9::internal::start_for<Range, Body, Partitioner>::run(const Range&, const Body&, Partitioner&) [with Range = tbb::blocked_range<tsl::detail_robin_hash::robin_hash<std::pair<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock>, tsl::robin_map<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock, utils::VoxelHash>::KeySelect, tsl::robin_map<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock, utils::VoxelHash>::ValueSelect, utils::VoxelHash, std::equal_to<Eigen::Matrix<int, 3, 1> >, std::allocator<std::pair<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock> >, false, tsl::rh::power_of_two_growth_policy<2> >::robin_iterator<false> >; Body = lidar::VoxelHashMap::remove_points_from_far(const Vec3d&)::<lambda(const tbb::blocked_range<tsl::detail_robin_hash::robin_hash<std::pair<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock>, tsl::robin_map<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock, utils::VoxelHash>::KeySelect, tsl::robin_map<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock, utils::VoxelHash>::ValueSelect, utils::VoxelHash, std::equal_to<Eigen::Matrix<int, 3, 1> >, std::allocator<std::pair<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock> >, false, tsl::rh::power_of_two_growth_policy<2> >::robin_iterator<false> >&)>; Partitioner = const tbb::auto_partitioner][m[K’
-[01m[K/usr/include/tbb/parallel_for.h:201:73:[m[K   required from ‘[01m[Kvoid tbb::parallel_for(const Range&, const Body&) [with Range = tbb::blocked_range<tsl::detail_robin_hash::robin_hash<std::pair<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock>, tsl::robin_map<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock, utils::VoxelHash>::KeySelect, tsl::robin_map<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock, utils::VoxelHash>::ValueSelect, utils::VoxelHash, std::equal_to<Eigen::Matrix<int, 3, 1> >, std::allocator<std::pair<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock> >, false, tsl::rh::power_of_two_growth_policy<2> >::robin_iterator<false> >; Body = lidar::VoxelHashMap::remove_points_from_far(const Vec3d&)::<lambda(const tbb::blocked_range<tsl::detail_robin_hash::robin_hash<std::pair<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock>, tsl::robin_map<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock, utils::VoxelHash>::KeySelect, tsl::robin_map<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock, utils::VoxelHash>::ValueSelect, utils::VoxelHash, std::equal_to<Eigen::Matrix<int, 3, 1> >, std::allocator<std::pair<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock> >, false, tsl::rh::power_of_two_growth_policy<2> >::robin_iterator<false> >&)>][m[K’
-[01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/src/sensors/lidar/helpers/voxel_hash_map.cpp:190:14:[m[K   required from here
-[01m[K/usr/include/tbb/blocked_range.h:89:42:[m[K [01;31m[Kerror: [m[Kno match for ‘[01m[Koperator<[m[K’ (operand types are ‘[01m[Kconst tsl::detail_robin_hash::robin_hash<std::pair<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock>, tsl::robin_map<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock, utils::VoxelHash>::KeySelect, tsl::robin_map<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock, utils::VoxelHash>::ValueSelect, utils::VoxelHash, std::equal_to<Eigen::Matrix<int, 3, 1> >, std::allocator<std::pair<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock> >, false, tsl::rh::power_of_two_growth_policy<2> >::robin_iterator<false>[m[K’ and ‘[01m[Kconst tsl::detail_robin_hash::robin_hash<std::pair<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock>, tsl::robin_map<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock, utils::VoxelHash>::KeySelect, tsl::robin_map<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock, utils::VoxelHash>::ValueSelect, utils::VoxelHash, std::equal_to<Eigen::Matrix<int, 3, 1> >, std::allocator<std::pair<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock> >, false, tsl::rh::power_of_two_growth_policy<2> >::robin_iterator<false>[m[K’)
-   89 |     bool empty() const {return ![01;31m[K(my_begin<my_end)[m[K;}
-      |                                 [01;31m[K~~~~~~~~~^~~~~~~~[m[K
-In file included from [01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/src/sensors/lidar/helpers/voxel_hash_map.cpp:2[m[K:
-[01m[K/usr/include/tbb/concurrent_vector.h:1367:13:[m[K [01;36m[Knote: [m[Kcandidate: ‘[01m[Ktemplate<class T, class A1, class A2> bool tbb::operator<(const tbb::concurrent_vector<T, A1>&, const tbb::concurrent_vector<T, A2>&)[m[K’
- 1367 | inline bool [01;36m[Koperator[m[K<(const concurrent_vector<T, A1> &a, const concurrent_vector<T, A2> &b)
-      |             [01;36m[K^~~~~~~~[m[K
-[01m[K/usr/include/tbb/concurrent_vector.h:1367:13:[m[K [01;36m[Knote: [m[K  template argument deduction/substitution failed:
-In file included from [01m[K/usr/include/tbb/concurrent_vector.h:27[m[K,
-                 from [01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/src/sensors/lidar/helpers/voxel_hash_map.cpp:2[m[K:
-[01m[K/usr/include/tbb/blocked_range.h:89:42:[m[K [01;36m[Knote: [m[K  ‘[01m[Kconst tsl::detail_robin_hash::robin_hash<std::pair<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock>, tsl::robin_map<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock, utils::VoxelHash>::KeySelect, tsl::robin_map<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock, utils::VoxelHash>::ValueSelect, utils::VoxelHash, std::equal_to<Eigen::Matrix<int, 3, 1> >, std::allocator<std::pair<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock> >, false, tsl::rh::power_of_two_growth_policy<2> >::robin_iterator<false>[m[K’ is not derived from ‘[01m[Kconst tbb::concurrent_vector<T, A1>[m[K’
-   89 |     bool empty() const {return ![01;36m[K(my_begin<my_end)[m[K;}
-      |                                 [01;36m[K~~~~~~~~~^~~~~~~~[m[K
-/usr/include/tbb/blocked_range.h: In instantiation of ‘[01m[Ktbb::blocked_range<Value>::size_type tbb::blocked_range<Value>::size() const [with Value = tsl::detail_robin_hash::robin_hash<std::pair<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock>, tsl::robin_map<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock, utils::VoxelHash>::KeySelect, tsl::robin_map<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock, utils::VoxelHash>::ValueSelect, utils::VoxelHash, std::equal_to<Eigen::Matrix<int, 3, 1> >, std::allocator<std::pair<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock> >, false, tsl::rh::power_of_two_growth_policy<2> >::robin_iterator<false>; tbb::blocked_range<Value>::size_type = long unsigned int][m[K’:
-[01m[K/usr/include/tbb/blocked_range.h:93:52:[m[K   required from ‘[01m[Kbool tbb::blocked_range<Value>::is_divisible() const [with Value = tsl::detail_robin_hash::robin_hash<std::pair<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock>, tsl::robin_map<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock, utils::VoxelHash>::KeySelect, tsl::robin_map<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock, utils::VoxelHash>::ValueSelect, utils::VoxelHash, std::equal_to<Eigen::Matrix<int, 3, 1> >, std::allocator<std::pair<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock> >, false, tsl::rh::power_of_two_growth_policy<2> >::robin_iterator<false>][m[K’
-[01m[K/usr/include/tbb/partitioner.h:248:9:[m[K   required from ‘[01m[Kvoid tbb::interface9::internal::partition_type_base<Partition>::execute(StartType&, Range&) [with StartType = tbb::interface9::internal::start_for<tbb::blocked_range<tsl::detail_robin_hash::robin_hash<std::pair<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock>, tsl::robin_map<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock, utils::VoxelHash>::KeySelect, tsl::robin_map<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock, utils::VoxelHash>::ValueSelect, utils::VoxelHash, std::equal_to<Eigen::Matrix<int, 3, 1> >, std::allocator<std::pair<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock> >, false, tsl::rh::power_of_two_growth_policy<2> >::robin_iterator<false> >, lidar::VoxelHashMap::remove_points_from_far(const Vec3d&)::<lambda(const tbb::blocked_range<tsl::detail_robin_hash::robin_hash<std::pair<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock>, tsl::robin_map<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock, utils::VoxelHash>::KeySelect, tsl::robin_map<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock, utils::VoxelHash>::ValueSelect, utils::VoxelHash, std::equal_to<Eigen::Matrix<int, 3, 1> >, std::allocator<std::pair<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock> >, false, tsl::rh::power_of_two_growth_policy<2> >::robin_iterator<false> >&)>, const tbb::auto_partitioner>; Range = tbb::blocked_range<tsl::detail_robin_hash::robin_hash<std::pair<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock>, tsl::robin_map<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock, utils::VoxelHash>::KeySelect, tsl::robin_map<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock, utils::VoxelHash>::ValueSelect, utils::VoxelHash, std::equal_to<Eigen::Matrix<int, 3, 1> >, std::allocator<std::pair<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock> >, false, tsl::rh::power_of_two_growth_policy<2> >::robin_iterator<false> >; Partition = tbb::interface9::internal::auto_partition_type][m[K’
-[01m[K/usr/include/tbb/parallel_for.h:142:9:[m[K   required from ‘[01m[Ktbb::task* tbb::interface9::internal::start_for<Range, Body, Partitioner>::execute() [with Range = tbb::blocked_range<tsl::detail_robin_hash::robin_hash<std::pair<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock>, tsl::robin_map<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock, utils::VoxelHash>::KeySelect, tsl::robin_map<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock, utils::VoxelHash>::ValueSelect, utils::VoxelHash, std::equal_to<Eigen::Matrix<int, 3, 1> >, std::allocator<std::pair<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock> >, false, tsl::rh::power_of_two_growth_policy<2> >::robin_iterator<false> >; Body = lidar::VoxelHashMap::remove_points_from_far(const Vec3d&)::<lambda(const tbb::blocked_range<tsl::detail_robin_hash::robin_hash<std::pair<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock>, tsl::robin_map<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock, utils::VoxelHash>::KeySelect, tsl::robin_map<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock, utils::VoxelHash>::ValueSelect, utils::VoxelHash, std::equal_to<Eigen::Matrix<int, 3, 1> >, std::allocator<std::pair<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock> >, false, tsl::rh::power_of_two_growth_policy<2> >::robin_iterator<false> >&)>; Partitioner = const tbb::auto_partitioner][m[K’
-[01m[K/usr/include/tbb/parallel_for.h:140:11:[m[K   required from here
-[01m[K/usr/include/tbb/blocked_range.h:78:32:[m[K [01;31m[Kerror: [m[Kno match for ‘[01m[Koperator-[m[K’ (operand types are ‘[01m[Kconst tsl::detail_robin_hash::robin_hash<std::pair<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock>, tsl::robin_map<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock, utils::VoxelHash>::KeySelect, tsl::robin_map<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock, utils::VoxelHash>::ValueSelect, utils::VoxelHash, std::equal_to<Eigen::Matrix<int, 3, 1> >, std::allocator<std::pair<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock> >, false, tsl::rh::power_of_two_growth_policy<2> >::robin_iterator<false>[m[K’ and ‘[01m[Kconst tsl::detail_robin_hash::robin_hash<std::pair<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock>, tsl::robin_map<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock, utils::VoxelHash>::KeySelect, tsl::robin_map<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock, utils::VoxelHash>::ValueSelect, utils::VoxelHash, std::equal_to<Eigen::Matrix<int, 3, 1> >, std::allocator<std::pair<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock> >, false, tsl::rh::power_of_two_growth_policy<2> >::robin_iterator<false>[m[K’)
-   78 |         return size_type([01;31m[Kmy_end-my_begin[m[K);
-      |                          [01;31m[K~~~~~~^~~~~~~~~[m[K
-/usr/include/tbb/blocked_range.h: In instantiation of ‘[01m[Kstatic Value tbb::blocked_range<Value>::do_split(tbb::blocked_range<Value>&, tbb::split) [with Value = tsl::detail_robin_hash::robin_hash<std::pair<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock>, tsl::robin_map<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock, utils::VoxelHash>::KeySelect, tsl::robin_map<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock, utils::VoxelHash>::ValueSelect, utils::VoxelHash, std::equal_to<Eigen::Matrix<int, 3, 1> >, std::allocator<std::pair<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock> >, false, tsl::rh::power_of_two_growth_policy<2> >::robin_iterator<false>][m[K’:
-[01m[K/usr/include/tbb/blocked_range.h:100:26:[m[K   required from ‘[01m[Ktbb::blocked_range<Value>::blocked_range(tbb::blocked_range<Value>&, tbb::split) [with Value = tsl::detail_robin_hash::robin_hash<std::pair<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock>, tsl::robin_map<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock, utils::VoxelHash>::KeySelect, tsl::robin_map<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock, utils::VoxelHash>::ValueSelect, utils::VoxelHash, std::equal_to<Eigen::Matrix<int, 3, 1> >, std::allocator<std::pair<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock> >, false, tsl::rh::power_of_two_growth_policy<2> >::robin_iterator<false>][m[K’
-[01m[K/usr/include/tbb/parallel_for.h:67:57:[m[K   required from ‘[01m[Ktbb::interface9::internal::start_for<Range, Body, Partitioner>::start_for(tbb::interface9::internal::start_for<Range, Body, Partitioner>&, typename Partitioner::split_type&) [with Range = tbb::blocked_range<tsl::detail_robin_hash::robin_hash<std::pair<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock>, tsl::robin_map<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock, utils::VoxelHash>::KeySelect, tsl::robin_map<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock, utils::VoxelHash>::ValueSelect, utils::VoxelHash, std::equal_to<Eigen::Matrix<int, 3, 1> >, std::allocator<std::pair<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock> >, false, tsl::rh::power_of_two_growth_policy<2> >::robin_iterator<false> >; Body = lidar::VoxelHashMap::remove_points_from_far(const Vec3d&)::<lambda(const tbb::blocked_range<tsl::detail_robin_hash::robin_hash<std::pair<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock>, tsl::robin_map<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock, utils::VoxelHash>::KeySelect, tsl::robin_map<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock, utils::VoxelHash>::ValueSelect, utils::VoxelHash, std::equal_to<Eigen::Matrix<int, 3, 1> >, std::allocator<std::pair<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock> >, false, tsl::rh::power_of_two_growth_policy<2> >::robin_iterator<false> >&)>; Partitioner = const tbb::auto_partitioner; typename Partitioner::split_type = tbb::split][m[K’
-[01m[K/usr/include/tbb/parallel_for.h:121:21:[m[K   required from ‘[01m[Kvoid tbb::interface9::internal::start_for<Range, Body, Partitioner>::offer_work(typename Partitioner::split_type&) [with Range = tbb::blocked_range<tsl::detail_robin_hash::robin_hash<std::pair<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock>, tsl::robin_map<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock, utils::VoxelHash>::KeySelect, tsl::robin_map<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock, utils::VoxelHash>::ValueSelect, utils::VoxelHash, std::equal_to<Eigen::Matrix<int, 3, 1> >, std::allocator<std::pair<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock> >, false, tsl::rh::power_of_two_growth_policy<2> >::robin_iterator<false> >; Body = lidar::VoxelHashMap::remove_points_from_far(const Vec3d&)::<lambda(const tbb::blocked_range<tsl::detail_robin_hash::robin_hash<std::pair<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock>, tsl::robin_map<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock, utils::VoxelHash>::KeySelect, tsl::robin_map<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock, utils::VoxelHash>::ValueSelect, utils::VoxelHash, std::equal_to<Eigen::Matrix<int, 3, 1> >, std::allocator<std::pair<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock> >, false, tsl::rh::power_of_two_growth_policy<2> >::robin_iterator<false> >&)>; Partitioner = const tbb::auto_partitioner; typename Partitioner::split_type = tbb::split][m[K’
-[01m[K/usr/include/tbb/partitioner.h:252:21:[m[K   required from ‘[01m[Kvoid tbb::interface9::internal::partition_type_base<Partition>::execute(StartType&, Range&) [with StartType = tbb::interface9::internal::start_for<tbb::blocked_range<tsl::detail_robin_hash::robin_hash<std::pair<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock>, tsl::robin_map<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock, utils::VoxelHash>::KeySelect, tsl::robin_map<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock, utils::VoxelHash>::ValueSelect, utils::VoxelHash, std::equal_to<Eigen::Matrix<int, 3, 1> >, std::allocator<std::pair<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock> >, false, tsl::rh::power_of_two_growth_policy<2> >::robin_iterator<false> >, lidar::VoxelHashMap::remove_points_from_far(const Vec3d&)::<lambda(const tbb::blocked_range<tsl::detail_robin_hash::robin_hash<std::pair<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock>, tsl::robin_map<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock, utils::VoxelHash>::KeySelect, tsl::robin_map<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock, utils::VoxelHash>::ValueSelect, utils::VoxelHash, std::equal_to<Eigen::Matrix<int, 3, 1> >, std::allocator<std::pair<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock> >, false, tsl::rh::power_of_two_growth_policy<2> >::robin_iterator<false> >&)>, const tbb::auto_partitioner>; Range = tbb::blocked_range<tsl::detail_robin_hash::robin_hash<std::pair<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock>, tsl::robin_map<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock, utils::VoxelHash>::KeySelect, tsl::robin_map<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock, utils::VoxelHash>::ValueSelect, utils::VoxelHash, std::equal_to<Eigen::Matrix<int, 3, 1> >, std::allocator<std::pair<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock> >, false, tsl::rh::power_of_two_growth_policy<2> >::robin_iterator<false> >; Partition = tbb::interface9::internal::auto_partition_type][m[K’
-[01m[K/usr/include/tbb/parallel_for.h:142:9:[m[K   required from ‘[01m[Ktbb::task* tbb::interface9::internal::start_for<Range, Body, Partitioner>::execute() [with Range = tbb::blocked_range<tsl::detail_robin_hash::robin_hash<std::pair<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock>, tsl::robin_map<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock, utils::VoxelHash>::KeySelect, tsl::robin_map<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock, utils::VoxelHash>::ValueSelect, utils::VoxelHash, std::equal_to<Eigen::Matrix<int, 3, 1> >, std::allocator<std::pair<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock> >, false, tsl::rh::power_of_two_growth_policy<2> >::robin_iterator<false> >; Body = lidar::VoxelHashMap::remove_points_from_far(const Vec3d&)::<lambda(const tbb::blocked_range<tsl::detail_robin_hash::robin_hash<std::pair<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock>, tsl::robin_map<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock, utils::VoxelHash>::KeySelect, tsl::robin_map<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock, utils::VoxelHash>::ValueSelect, utils::VoxelHash, std::equal_to<Eigen::Matrix<int, 3, 1> >, std::allocator<std::pair<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock> >, false, tsl::rh::power_of_two_growth_policy<2> >::robin_iterator<false> >&)>; Partitioner = const tbb::auto_partitioner][m[K’
-[01m[K/usr/include/tbb/parallel_for.h:140:11:[m[K   required from here
-[01m[K/usr/include/tbb/blocked_range.h:134:47:[m[K [01;31m[Kerror: [m[Kno match for ‘[01m[Koperator-[m[K’ (operand types are ‘[01m[Ktsl::detail_robin_hash::robin_hash<std::pair<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock>, tsl::robin_map<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock, utils::VoxelHash>::KeySelect, tsl::robin_map<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock, utils::VoxelHash>::ValueSelect, utils::VoxelHash, std::equal_to<Eigen::Matrix<int, 3, 1> >, std::allocator<std::pair<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock> >, false, tsl::rh::power_of_two_growth_policy<2> >::robin_iterator<false>[m[K’ and ‘[01m[Ktsl::detail_robin_hash::robin_hash<std::pair<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock>, tsl::robin_map<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock, utils::VoxelHash>::KeySelect, tsl::robin_map<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock, utils::VoxelHash>::ValueSelect, utils::VoxelHash, std::equal_to<Eigen::Matrix<int, 3, 1> >, std::allocator<std::pair<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock> >, false, tsl::rh::power_of_two_growth_policy<2> >::robin_iterator<false>[m[K’)
-  134 |         Value middle = r.my_begin + [01;31m[K(r.my_end - r.my_begin)[m[K / 2u;
-      |                                     [01;31m[K~~~~~~~~~~^~~~~~~~~~~~~[m[K
-make[2]: *** [CMakeFiles/limu.dir/build.make:154: CMakeFiles/limu.dir/src/sensors/lidar/helpers/voxel_hash_map.cpp.o] Error 1
+                 from [01m[K/opt/ros/noetic/include/ros/ros.h:38[m[K,
+                 from [01m[K/opt/ros/noetic/include/tf2_ros/static_transform_broadcaster.h:38[m[K,
+                 from [01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/src/odom_run.hpp:4[m[K,
+                 from [01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/src/odom_run.cpp:1[m[K:
+[01m[K/usr/include/c++/9/bits/unique_ptr.h:334:7:[m[K [01;36m[Knote: [m[Kcandidate: ‘[01m[Kstd::unique_ptr<_Tp, _Dp>& std::unique_ptr<_Tp, _Dp>::operator=(std::nullptr_t) [with _Tp = kalman::EKF; _Dp = std::default_delete<kalman::EKF>; std::nullptr_t = std::nullptr_t][m[K’
+  334 |       [01;36m[Koperator[m[K=(nullptr_t) noexcept
+      |       [01;36m[K^~~~~~~~[m[K
+[01m[K/usr/include/c++/9/bits/unique_ptr.h:334:17:[m[K [01;36m[Knote: [m[K  no known conversion for argument 1 from ‘[01m[Kstd::shared_ptr<kalman::EKF>[m[K’ to ‘[01m[Kstd::nullptr_t[m[K’
+  334 |       operator=([01;36m[Knullptr_t[m[K) noexcept
+      |                 [01;36m[K^~~~~~~~~[m[K
+[01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/src/odom_run.cpp:[m[K In member function ‘[01m[Kvoid Odometry::kalman_filter_process(frame::LidarImuInit::Ptr&)[m[K’:
+[01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/src/odom_run.cpp:140:18:[m[K [01;31m[Kerror: [m[K‘[01m[Kdouble frame::Imu::first_lidar_time[m[K’ is private within this context
+  140 |         imu_ptr->[01;31m[Kfirst_lidar_time[m[K = tracker.first_lidar_time;
+      |                  [01;31m[K^~~~~~~~~~~~~~~~[m[K
+In file included from [01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/include/limu/sensors/sync_frame.hpp:5[m[K,
+                 from [01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/src/odom_run.hpp:9[m[K,
+                 from [01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/src/odom_run.cpp:1[m[K:
+[01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/include/limu/sensors/imu/frame.hpp:99:63:[m[K [01;36m[Knote: [m[Kdeclared private here
+   99 |         double time_in, prev_time_in, period, prev_timestamp, [01;36m[Kfirst_lidar_time[m[K;
+      |                                                               [01;36m[K^~~~~~~~~~~~~~~~[m[K
+[01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/src/odom_run.cpp:144:18:[m[K [01;31m[Kerror: [m[K‘[01m[Kbool frame::Imu::enabled[m[K’ is private within this context
+  144 |     if (imu_ptr->[01;31m[Kenabled[m[K)
+      |                  [01;31m[K^~~~~~~[m[K
+In file included from [01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/include/limu/sensors/sync_frame.hpp:5[m[K,
+                 from [01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/src/odom_run.hpp:9[m[K,
+                 from [01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/src/odom_run.cpp:1[m[K:
+[01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/include/limu/sensors/imu/frame.hpp:100:14:[m[K [01;36m[Knote: [m[Kdeclared private here
+  100 |         bool [01;36m[Kenabled[m[K, initialized, lidar_imu_done, need_init, imu_deskwed, first_frame;
+      |              [01;36m[K^~~~~~~[m[K
+[01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/src/odom_run.cpp:145:52:[m[K [01;31m[Kerror: [m[Kno matching function for call to ‘[01m[Kframe::Imu::initialize_propagate_undistort(kalman::EKF::Ptr&)[m[K’
+  145 |         imu_ptr->initialize_propagate_undistort(ekf[01;31m[K)[m[K;
+      |                                                    [01;31m[K^[m[K
+In file included from [01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/include/limu/sensors/sync_frame.hpp:5[m[K,
+                 from [01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/src/odom_run.hpp:9[m[K,
+                 from [01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/src/odom_run.cpp:1[m[K:
+[01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/include/limu/sensors/imu/frame.hpp:52:14:[m[K [01;36m[Knote: [m[Kcandidate: ‘[01m[Kvoid frame::Imu::initialize_propagate_undistort(kalman::EKF::Ptr&, int)[m[K’
+   52 |         void [01;36m[Kinitialize_propagate_undistort[m[K(kalman::EKF::Ptr &ekf, LidarImuInit::Ptr &meas);
+      |              [01;36m[K^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[m[K
+[01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/include/limu/sensors/imu/frame.hpp:52:14:[m[K [01;36m[Knote: [m[K  candidate expects 2 arguments, 1 provided
+make[2]: *** [CMakeFiles/limu.dir/build.make:76: CMakeFiles/limu.dir/src/odom_run.cpp.o] Error 1
+make[2]: *** Waiting for unfinished jobs....
+make[2]: *** [CMakeFiles/limu.dir/build.make:63: CMakeFiles/limu.dir/src/kalman/ekf.cpp.o] Error 1
 make[1]: *** [CMakeFiles/Makefile2:225: CMakeFiles/limu.dir/all] Error 2
 make: *** [Makefile:141: all] Error 2

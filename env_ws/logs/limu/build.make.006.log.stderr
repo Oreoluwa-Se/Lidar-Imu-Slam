@@ -1,7 +1,0 @@
-[01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/src/sensors/lidar/helpers/voxel_hash_map.cpp:[m[K In member function ‘[01m[Kvoid lidar::VoxelHashMap::remove_points_from_far(const Vec3d&)[m[K’:
-[01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/src/sensors/lidar/helpers/voxel_hash_map.cpp:173:17:[m[K [01;31m[Kerror: [m[K‘[01m[Kclass tsl::robin_map<Eigen::Matrix<int, 3, 1>, lidar::VoxelBlock, utils::VoxelHash>[m[K’ has no member named ‘[01m[Krange[m[K’
-  173 |             map.[01;31m[Krange[m[K(), [&](map_iterator it)
-      |                 [01;31m[K^~~~~[m[K
-make[2]: *** [CMakeFiles/limu.dir/build.make:154: CMakeFiles/limu.dir/src/sensors/lidar/helpers/voxel_hash_map.cpp.o] Error 1
-make[1]: *** [CMakeFiles/Makefile2:225: CMakeFiles/limu.dir/all] Error 2
-make: *** [Makefile:141: all] Error 2

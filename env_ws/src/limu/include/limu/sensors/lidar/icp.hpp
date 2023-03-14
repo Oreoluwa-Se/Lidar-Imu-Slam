@@ -38,6 +38,10 @@ namespace lidar
               adaptive_threshold(config->initial_threshold, config->min_motion_th, config->max_range),
               compensator(), scan_duration(1 / (double(config->frame_split_num) * config->frame_rate)){};
 
+        // outlier removal from points
+        utils::Vec3dVector iqr_processing(const utils::Vec3dVector &frame);
+        utils::Vec3dVector deskew_scan(const utils::PointCloudXYZI &frame, const std::vector<double> &timestamps);
+
         // register frame
         ReturnTuple register_frame(const utils::PointCloudXYZI &pointcloud, const std::vector<double> &timestamps);
         ReturnTuple register_frame(const utils::Vec3dVector &frame);

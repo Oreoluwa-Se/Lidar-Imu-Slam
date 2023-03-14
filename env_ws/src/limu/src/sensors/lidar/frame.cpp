@@ -17,7 +17,6 @@ namespace frame
         {
             ROS_ERROR("Lidar Buffer Looped. Clearning buffer");
             processed_buffer.clear();
-            orig_buffer.clear();
             timestamps.clear();
             accumulated_segment_time.clear();
         }
@@ -26,39 +25,15 @@ namespace frame
         prev_timestamp = curr_time;
     }
 
-    void Lidar::iqr_processing(
-        PointCloud::Ptr &surface_cloud, PointCloud::Ptr &processed_cloud,
-        std::vector<double> &point_distance, std::vector<double> &valid_timestamp)
-    {
-        std::vector<double> time_vec;
-
-        const auto &iqr_val = outlier::IQR(point_distance);
-        double low_bound = iqr_val[0] - IQR_TUCHEY * iqr_val[2];
-        double high_bound = iqr_val[1] + IQR_TUCHEY * iqr_val[2];
-
-        for (size_t idx = 0; idx < point_distance.size(); idx++)
-        {
-            const auto &distance = point_distance[idx];
-            if (distance >= low_bound && distance <= high_bound)
-            {
-                processed_cloud->points.emplace_back(surface_cloud->points[idx]);
-                time_vec.emplace_back(valid_timestamp[idx]);
-            }
-        }
-
-        valid_timestamp = std::move(time_vec);
-    }
-
     void Lidar::sort_clouds(
-        PointCloud::Ptr &surface_cloud, PointCloud::Ptr &processed_cloud,
-        std::vector<double> &valid_timestamp)
+        PointCloud::Ptr &surface_cloud, std::vector<double> &valid_timestamp)
     {
         std::vector<int> indices(valid_timestamp.size());
         std::iota(indices.begin(), indices.end(), 0);
 
         auto compare_curvature = [&](const int i, const int j)
         {
-            return processed_cloud->points[i].curvature < processed_cloud->points[j].curvature;
+            return surface_cloud->points[i].curvature < surface_cloud->points[j].curvature;
         };
         std::sort(indices.begin(), indices.end(), compare_curvature);
 
@@ -66,90 +41,59 @@ namespace frame
         std::vector<double> valid_times_sorted;
         for (const auto idx : indices)
         {
-            inliers.emplace_back(processed_cloud->points[idx]);
+            inliers.emplace_back(surface_cloud->points[idx]);
             valid_times_sorted.emplace_back(valid_timestamp[idx]);
         }
 
-        processed_cloud->points.assign(inliers.begin(), inliers.end());
+        // replace in original points
+        surface_cloud->points.assign(inliers.begin(), inliers.end());
         valid_timestamp = std::move(valid_times_sorted);
-
-        // sort original pointcloud
-        std::sort(
-            surface_cloud->points.begin(), surface_cloud->points.end(),
-            [](const auto &a, const auto &b)
-            {
-                return a.curvature < b.curvature;
-            });
     }
 
     void Lidar::split_clouds(
-        PointCloud::Ptr &surface_cloud, PointCloud::Ptr &processed_cloud,
-        std::vector<double> &valid_timestamp, double &message_time)
+        PointCloud::Ptr &surface_cloud, std::vector<double> &valid_timestamp, double &message_time)
     {
 
         double message_time_ms = message_time * 1000; // convert to ms
-        double last_frame_end_time_surf = message_time_ms, last_frame_end_time_processed = message_time_ms;
+        double last_frame_end_time = message_time_ms;
 
-        const size_t valid_pcl_size_processed = processed_cloud->points.size();
-        const size_t valid_pcl_size_surf = surface_cloud->points.size();
+        const size_t valid_pcl_size = surface_cloud->points.size();
 
         // split processed frame
-        int valid_num = 0, cut_num_processed = 0, cut_num_surf = 0;
+        int valid_num = 0, cut_num = 0;
         const int required_cut_num = (scan_count < MIN_SCAN_COUNT) ? 1 : config->frame_split_num;
 
-        PointCloud::Ptr split_processed(new PointCloud());
         PointCloud::Ptr split_surface(new PointCloud());
         std::vector<double> times;
 
-        for (auto idx = 1; idx < valid_pcl_size_surf; ++idx)
+        for (auto idx = 1; idx < valid_pcl_size; ++idx)
         {
             valid_num++;
 
             // accumulate time elapsed at each point.
-            surface_cloud->points[idx].curvature += message_time_ms - last_frame_end_time_surf;
+            surface_cloud->points[idx].curvature += message_time_ms - last_frame_end_time;
             split_surface->points.push_back(std::move(surface_cloud->points[idx]));
 
-            if (idx < valid_pcl_size_processed)
+            times.push_back(std::move(valid_timestamp[idx]));
+
+            if (valid_num == static_cast<int>(((cut_num + 1) * valid_pcl_size / required_cut_num) - 1))
             {
-                processed_cloud->points[idx].curvature += message_time_ms - last_frame_end_time_processed;
-                split_processed->points.push_back(std::move(processed_cloud->points[idx]));
-                times.push_back(std::move(valid_timestamp[idx]));
-
-                if (valid_num == static_cast<int>(((cut_num_processed + 1) * valid_pcl_size_processed / required_cut_num) - 1))
-                {
-                    cut_num_processed++;
-                    // new pointer
-                    PointCloud::Ptr temp(new PointCloud());
-                    *temp = *split_processed;
-                    // update holders
-                    processed_buffer.emplace_back(std::move(temp));
-                    timestamps.push_back(utils::normalize_timestamps(times));
-
-                    accumulated_segment_time.push_back(last_frame_end_time_processed / double(1000)); // sec
-
-                    // increment or reset parameters
-                    last_frame_end_time_processed += processed_cloud->points[idx].curvature;
-                    times.clear();
-                    split_processed->points.clear();
-                    split_processed->reserve(valid_pcl_size_processed * 2 / required_cut_num);
-                    times.reserve(split_processed->points.size());
-                }
-            }
-
-            // processing surface point clouds
-            if (valid_num == static_cast<int>(((cut_num_surf + 1) * valid_pcl_size_surf / required_cut_num) - 1))
-            {
-                cut_num_surf++;
+                cut_num++;
                 // new pointer
                 PointCloud::Ptr temp(new PointCloud());
                 *temp = *split_surface;
                 // update holders
-                orig_buffer.emplace_back(std::move(temp));
-                last_frame_end_time_surf += surface_cloud->points[idx].curvature;
+                processed_buffer.emplace_back(std::move(temp));
+                timestamps.push_back(utils::normalize_timestamps(times));
+
+                accumulated_segment_time.push_back(last_frame_end_time / double(1000)); // sec
 
                 // increment or reset parameters
+                last_frame_end_time += surface_cloud->points[idx].curvature;
+                times.clear();
                 split_surface->points.clear();
-                split_surface->reserve(valid_pcl_size_surf * 2 / required_cut_num);
+                split_surface->reserve(valid_pcl_size * 2 / required_cut_num);
+                times.reserve(split_surface->points.size());
             }
         }
     }
@@ -168,12 +112,8 @@ namespace frame
         // storage initializer
         PointCloud::Ptr surface_cloud(new PointCloud());
         surface_cloud->reserve(cloud_size);
-        PointCloud::Ptr processed_cloud(new PointCloud());
-        processed_cloud->reserve(cloud_size);
-        std::vector<double> point_distance;
         std::vector<double> valid_timestamp;
 
-        point_distance.reserve(cloud_size);
         valid_timestamp.reserve(cloud_size);
 
         // holders
@@ -242,18 +182,14 @@ namespace frame
             }
 
             surface_cloud->points.emplace_back(added_pt);
-            point_distance.emplace_back(dist);
             valid_timestamp.emplace_back(extracted_time[i_dx]);
         }
 
-        // iqr check to remove outliers.
-        iqr_processing(surface_cloud, processed_cloud, point_distance, valid_timestamp);
-
         // sort according to increasing curvature.
-        sort_clouds(surface_cloud, processed_cloud, valid_timestamp);
+        sort_clouds(surface_cloud, valid_timestamp);
 
         // partition pointclouds when necessary.
-        split_clouds(surface_cloud, processed_cloud, valid_timestamp, message_time);
+        split_clouds(surface_cloud, valid_timestamp, message_time);
     }
 
     void Lidar::set_current_pose_nav(

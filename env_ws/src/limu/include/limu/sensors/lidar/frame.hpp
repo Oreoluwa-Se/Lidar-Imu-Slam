@@ -96,14 +96,14 @@ namespace frame
         bool buffer_empty()
         {
             std::unique_lock<std::mutex> lock(data_mutex);
-            return processed_buffer.empty() && orig_buffer.empty();
+            return processed_buffer.empty();
         }
         // lidar information
 
-        utils::PointCloudXYZIPtrTuple get_lidar_buffer_front()
+        PointCloud::Ptr get_lidar_buffer_front()
         {
             std::unique_lock<std::mutex> lock(data_mutex);
-            return {processed_buffer.front(), orig_buffer.front()};
+            return processed_buffer.front();
         }
 
         std::vector<double> get_segment_ts_front()
@@ -122,7 +122,6 @@ namespace frame
         {
             std::unique_lock<std::mutex> lock(data_mutex);
             timestamps.pop_front();
-            orig_buffer.pop_front();
             processed_buffer.pop_front();
             accumulated_segment_time.pop_front();
         }
@@ -146,21 +145,15 @@ namespace frame
             angle_limit = config->max_angle - config->min_angle;
         }
 
-        void iqr_processing(
-            PointCloud::Ptr &surface_cloud, PointCloud::Ptr &processed_cloud,
-            std::vector<double> &point_distance, std::vector<double> &valid_timestamp);
+        void sort_clouds(PointCloud::Ptr &surface_cloud, std::vector<double> &valid_timestamp);
 
-        void sort_clouds(PointCloud::Ptr &surface_cloud, PointCloud::Ptr &processed_cloud, std::vector<double> &valid_timestamp);
-
-        void split_clouds(PointCloud::Ptr &surface_cloud, PointCloud::Ptr &processed_cloud,
-                          std::vector<double> &valid_timestamp, double &message_time);
+        void split_clouds(PointCloud::Ptr &surface_cloud, std::vector<double> &valid_timestamp, double &message_time);
 
         // attributes
         sensor_msgs::PointCloud2::ConstPtr msg_holder;
         // important for pointcloud processing
         std::deque<std::vector<double>> timestamps;   // individual timestamps for each buffer.
         std::deque<double> accumulated_segment_time;  // total segment time for each pointcloud in buffer.
-        std::deque<PointCloud::Ptr> orig_buffer;      // holds original pointcloud from msg.
         std::deque<PointCloud::Ptr> processed_buffer; // holds processed pointcloud from msg.
 
         // class manipulators

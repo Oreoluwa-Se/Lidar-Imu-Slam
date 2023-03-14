@@ -13,6 +13,30 @@ void Odometry::initialize_publishers(ros::NodeHandle &nh)
     traj_publisher = nh.advertise<nav_msgs::Path>("trajectory", queue_size);
 }
 
+void Odometry::setup_ekf(ros::NodeHandle &nh)
+{
+    kalman::EKF_PARAMETERS::Ptr p(new kalman::EKF_PARAMETERS);
+    nh.param<int>("lidar_pose_trail", p->lidar_pose_trail, 20);
+    nh.param<double>("noise_scale", p->noise_scale, 100);
+    nh.param<double>("init_pos_noise", p->init_pos_noise, 1e-5);
+    nh.param<double>("init_vel_noise", p->init_vel_noise, 0.1);
+    nh.param<double>("init_bga_noise", p->init_bga_noise, 1e-3);
+    nh.param<double>("init_baa_noise", p->init_baa_noise, 1e-6);
+    nh.param<double>("init_bat_noise", p->init_bat_noise, 1e-5);
+    // standard deviation from spec sheet
+    nh.param<double>("acc_process_noise", p->acc_process_noise, 0.03);
+    nh.param<double>("gyro_process_noise", p->gyro_process_noise, 0.00017);
+    nh.param<double>("acc_process_noise_rev", p->acc_process_noise_rev, 0.1);
+    nh.param<double>("gyro_process_noise_rev", p->gyro_process_noise_rev, 0.1);
+    nh.param<double>("init_pos_trail_noise", p->init_pos_trail_noise, 100);
+    nh.param<double>("init_ori_trail_noise", p->init_ori_trail_noise, 3.1622776);
+    nh.param<double>("init_lidar_imu_time_noise", p->init_lidar_imu_time_noise, 1e-5);
+
+    nh.param<double>("init_ori_noise", p->init_bga_noise, 0.01 * p->init_ori_trail_noise);
+
+    ekf = std::make_unique<kalman::EKF>(p);
+}
+
 void Odometry::imu_callback(const sensor_msgs::Imu::ConstPtr &msg)
 {
     imu_ptr->process_data(msg);
@@ -50,8 +74,7 @@ bool Odometry::lidar_process(frame::LidarImuInit::Ptr &meas)
 
     if (!tracker.lidar_pushed)
     {
-        auto holder = lidar_ptr->get_lidar_buffer_front();
-        const auto &processed_frame = std::get<0>(holder);
+        const auto &processed_frame = lidar_ptr->get_lidar_buffer_front();
 
         if (processed_frame->points.size() <= 1)
         {
@@ -60,12 +83,10 @@ bool Odometry::lidar_process(frame::LidarImuInit::Ptr &meas)
             return false;
         }
 
-        const auto &orig_frame = std::get<1>(holder);
-
         // load information into frame
         meas = std::make_shared<frame::LidarImuInit>();
         meas->processed_frame = processed_frame;
-        meas->original_frame = orig_frame;
+
         // ============================ //
         meas->time_buffer = lidar_ptr->get_segment_ts_front();     // normalized time stamps
         meas->lidar_beg_time = lidar_ptr->curr_acc_segment_time(); // uint:s
@@ -87,6 +108,9 @@ void Odometry::estimate_lidar_odometry(frame::LidarImuInit::Ptr &meas)
     const auto &key_points = std::get<1>(icp_output);
     const auto &pose = std::get<2>(icp_output);
 
+    std::cout << "Current pose:" << std::endl;
+    std::cout << pose.matrix() << std::endl;
+
     const utils::Vec3d translation = pose.translation();
     const Eigen::Quaterniond quat = pose.unit_quaternion();
 
@@ -106,6 +130,25 @@ void Odometry::estimate_lidar_odometry(frame::LidarImuInit::Ptr &meas)
     // For debugging purposes
     publish_point_cloud(frame_publisher, curr_time, child_frame, deskewed);
     publish_point_cloud(kpoints_publisher, curr_time, child_frame, key_points);
+}
+
+void Odometry::kalman_filter_process(frame::LidarImuInit::Ptr &meas)
+{
+    if (meas->deskewed.empty())
+    {
+        tracker.first_lidar_time = meas->lidar_beg_time;
+        imu_ptr->first_lidar_time = tracker.first_lidar_time;
+        ROS_WARN("Cannot run the Initialization scheme yet.");
+    }
+
+    if (imu_ptr->enabled)
+        imu_ptr->initialize_propagate_undistort(ekf, meas);
+    else
+    {
+        // undistort points using lidar stuff
+        meas->deskewed = icp_ptr->deskew_scan(*(meas->processed_frame), meas->time_buffer);
+        ROS_INFO("Motion Compensated with Lidar");
+    }
 }
 
 void Odometry::run()
@@ -193,6 +236,7 @@ void Odometry::publish_point_cloud(
 
     pub.publish(cloud_msg);
 }
+
 int main(int argc, char **argv)
 {
     ros::init(argc, argv, "slam_run");

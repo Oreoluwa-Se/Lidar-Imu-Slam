@@ -42,7 +42,7 @@ namespace outlier
     {
         std::vector<T> a(inp.begin(), inp.end());
         const int n = a.size();
-        if (inp.size() < 30)
+        if (n < 30)
             std::sort(a.begin(), a.end());
         else
             tbb::parallel_sort(a.begin(), a.end());

@@ -9,6 +9,7 @@
 #include "limu/sensors/sync_frame.hpp"
 #include "limu/sensors/imu/frame.hpp"
 #include "limu/sensors/lidar/icp.hpp"
+#include "limu/kalman/ekf.hpp"
 #include "sensor_msgs/PointCloud2.h"
 #include "sensor_msgs/Imu.h"
 #include "nav_msgs/Path.h"
@@ -21,11 +22,11 @@ public:
     {
         Trackers()
             : time_diff_imu_wrt_lidar(0.0), time_lag_IMU_wtr_lidar(0.0),
-              lidar_end_time(0.0), move_start_time(0.0),
+              lidar_end_time(0.0), move_start_time(0.0), first_lidar_time(0.0),
               timediff_set_flag(false), imu_en(false), data_accum_finished(false),
               data_accum_start(false), exit_flag(false), lidar_pushed(false), reset_flag(false) {}
 
-        double time_diff_imu_wrt_lidar, time_lag_IMU_wtr_lidar, lidar_end_time, move_start_time;
+        double time_diff_imu_wrt_lidar, time_lag_IMU_wtr_lidar, lidar_end_time, move_start_time, first_lidar_time;
         bool timediff_set_flag, imu_en, data_accum_finished, data_accum_start, exit_flag, lidar_pushed, reset_flag;
     };
 
@@ -41,6 +42,9 @@ public:
         nh.param<std::string>("imu_topic", imu_topic, "/imu_ned/data");
         lidar_sub = nh.subscribe(lidar_topic, queue_size, &Odometry::lidar_callback, this);
         imu_sub = nh.subscribe(imu_topic, queue_size, &Odometry::imu_callback, this);
+
+        // initialize kalman filter;
+        setup_ekf(nh);
 
         // initialize publishers
         initialize_publishers(nh);
@@ -75,16 +79,19 @@ private:
     void lidar_callback(const sensor_msgs::PointCloud2::ConstPtr &msg);
     void imu_callback(const sensor_msgs::Imu::ConstPtr &msg);
     bool lidar_process(frame::LidarImuInit::Ptr &meas);
-
+    void setup_ekf(ros::NodeHandle &nh);
     void estimate_lidar_odometry(frame::LidarImuInit::Ptr &meas);
     void publish_point_cloud(ros::Publisher &pub, const ros::Time &time,
                              const std::string &frame_id,
                              const utils::Vec3dVector &points);
 
+    void kalman_filter_process(frame::LidarImuInit::Ptr &meas);
+
     // attributes
     lidar::KissICP::Ptr icp_ptr;
     frame::Lidar::Ptr lidar_ptr;
     frame::Imu::Ptr imu_ptr;
+    kalman::EKF::Ptr ekf;
     Trackers tracker;
 
     // broadcasting
