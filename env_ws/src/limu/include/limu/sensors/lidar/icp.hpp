@@ -39,7 +39,6 @@ namespace lidar
               compensator(), scan_duration(1 / (double(config->frame_split_num) * config->frame_rate)){};
 
         // outlier removal from points
-        utils::Vec3dVector iqr_processing(const utils::Vec3dVector &frame);
         utils::Vec3dVector deskew_scan(const utils::PointCloudXYZI &frame, const std::vector<double> &timestamps);
 
         // register frame
@@ -47,7 +46,7 @@ namespace lidar
         ReturnTuple register_frame(const utils::Vec3dVector &frame);
 
         // downsample pointcloud KISS-ICP Downsampling scheme.
-        utils::Vec3_Vec3Tuple voxelize(const utils::Vec3dVector &frame, const double vox_size);
+        utils::Vec3_Vec3Tuple voxelize(const utils::Vec3dVector &frame);
 
         SE3d get_prediction_model() const;
         double get_adaptive_threshold();

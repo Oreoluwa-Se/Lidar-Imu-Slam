@@ -4,7 +4,7 @@
     <!--Load parameter file that has ros parameters-->
 
     <!--Launch module-->
-    <node pkg="limu" type="odom_run" name="odom_run" output="screen"/>
+    <node pkg="limu" type="lio" name="lio" output="screen"/>
 
     <!--Launch rosbag-->
     <node pkg="rosbag" type="play" name="player" output="screen" args="--clock $(arg rosbag_file)"/>

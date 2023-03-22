@@ -48,5 +48,17 @@ namespace utils
             return ((1 << 20) - 1) & (vec[0] * 73856093 ^ vec[1] * 19349663 ^ vec[2] * 83492791);
         }
     };
+
+    struct LidarPose
+    {
+        EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
+
+        /** Device position  */
+        Eigen::Vector3d p;
+        /** Device orientation matrices in the lidar coordinate system. */
+        Eigen::Matrix3d R;
+        /** Derivative of R  w.r.t. each component of q */
+        Eigen::Matrix3d dR[4];
+    };
 }
 #endif

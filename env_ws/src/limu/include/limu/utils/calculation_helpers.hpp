@@ -45,8 +45,14 @@ namespace utils
     // calculate motion between two poses.
     utils::Vec3Tuple get_motion(const SE3d &start_pose, const SE3d &end_pose, double dt);
 
+    template <typename T>
+    Eigen::Matrix<T, 3, 1> rotation_matrix_to_euler_angles(const Eigen::Matrix<T, 3, 3> &rot);
+
     // ADHOC
-    inline double square(double x) { return x * x; }
+    inline double square(double x)
+    {
+        return x * x;
+    }
 
     // Helper for calculating voxel
     utils::Voxel get_vox_index(const utils::Vec3d &point, double vox_size);

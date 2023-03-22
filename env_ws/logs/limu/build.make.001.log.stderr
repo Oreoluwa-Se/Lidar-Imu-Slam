@@ -1,114 +1,16 @@
-In file included from [01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/include/limu/sensors/sync_frame.hpp:5[m[K,
-                 from [01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/include/limu/kalman/ekf.hpp:5[m[K,
-                 from [01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/src/kalman/ekf.cpp:1[m[K:
-[01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/include/limu/sensors/imu/frame.hpp:11:17:[m[K [01;31m[Kerror: [m[K‘[01m[Kkalman[m[K’ is not a namespace-name
-   11 | using namespace [01;31m[Kkalman[m[K;
-      |                 [01;31m[K^~~~~~[m[K
-[01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/include/limu/sensors/imu/frame.hpp:53:45:[m[K [01;31m[Kerror: [m[K‘[01m[Kkalman[m[K’ has not been declared
-   53 |         void initialize_propagate_undistort([01;31m[Kkalman[m[K::EKF::Ptr &ekf, LidarImuInit::Ptr &meas);
-      |                                             [01;31m[K^~~~~~[m[K
-[01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/include/limu/sensors/imu/frame.hpp:53:62:[m[K [01;31m[Kerror: [m[Kexpected ‘[01m[K,[m[K’ or ‘[01m[K...[m[K’ before ‘[01m[K&[m[K’ token
-   53 |         void initialize_propagate_undistort(kalman::EKF::Ptr [01;31m[K&[m[Kekf, LidarImuInit::Ptr &meas);
-      |                                                              [01;31m[K^[m[K
-[01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/include/limu/sensors/imu/frame.hpp:57:19:[m[K [01;31m[Kerror: [m[K‘[01m[Kkalman[m[K’ has not been declared
-   57 |         void init([01;31m[Kkalman[m[K::EKF::Ptr &ekf, LidarImuInit::Ptr &meas);
-      |                   [01;31m[K^~~~~~[m[K
-[01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/include/limu/sensors/imu/frame.hpp:57:36:[m[K [01;31m[Kerror: [m[Kexpected ‘[01m[K,[m[K’ or ‘[01m[K...[m[K’ before ‘[01m[K&[m[K’ token
-   57 |         void init(kalman::EKF::Ptr [01;31m[K&[m[Kekf, LidarImuInit::Ptr &meas);
-      |                                    [01;31m[K^[m[K
-In file included from [01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/include/limu/sensors/imu/frame.hpp:9[m[K,
-                 from [01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/include/limu/sensors/sync_frame.hpp:5[m[K,
-                 from [01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/src/odom_run.hpp:9[m[K,
-                 from [01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/src/odom_run.cpp:1[m[K:
-[01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/include/limu/kalman/ekf.hpp:160:50:[m[K [01;31m[Kerror: [m[K‘[01m[Kframe::LidarImuInit[m[K’ has not been declared
-  160 |         void motion_compensation_with_imu(frame::[01;31m[KLidarImuInit[m[K::Ptr &meas);
-      |                                                  [01;31m[K^~~~~~~~~~~~[m[K
-[01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/include/limu/kalman/ekf.hpp:160:68:[m[K [01;31m[Kerror: [m[Kexpected ‘[01m[K,[m[K’ or ‘[01m[K...[m[K’ before ‘[01m[K&[m[K’ token
-  160 |         void motion_compensation_with_imu(frame::LidarImuInit::Ptr [01;31m[K&[m[Kmeas);
-      |                                                                    [01;31m[K^[m[K
-In file included from [01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/include/limu/sensors/sync_frame.hpp:5[m[K,
-                 from [01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/src/odom_run.hpp:9[m[K,
-                 from [01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/src/odom_run.cpp:1[m[K:
-[01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/include/limu/sensors/imu/frame.hpp:53:82:[m[K [01;31m[Kerror: [m[K‘[01m[Kframe::LidarImuInit::Ptr[m[K’ has not been declared
-   53 |         void initialize_propagate_undistort(kalman::EKF::Ptr &ekf, LidarImuInit::[01;31m[KPtr[m[K &meas);
-      |                                                                                  [01;31m[K^~~[m[K
-[01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/include/limu/sensors/imu/frame.hpp:57:56:[m[K [01;31m[Kerror: [m[K‘[01m[Kframe::LidarImuInit::Ptr[m[K’ has not been declared
-   57 |         void init(kalman::EKF::Ptr &ekf, LidarImuInit::[01;31m[KPtr[m[K &meas);
-      |                                                        [01;31m[K^~~[m[K
-[01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/src/odom_run.cpp:[m[K In member function ‘[01m[Kvoid Odometry::setup_ekf(ros::NodeHandle&)[m[K’:
-[01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/src/odom_run.cpp:37:42:[m[K [01;31m[Kerror: [m[Kno match for ‘[01m[Koperator=[m[K’ (operand types are ‘[01m[Kkalman::EKF::Ptr[m[K’ {aka ‘[01m[Kstd::unique_ptr<kalman::EKF>[m[K’} and ‘[01m[Kstd::shared_ptr<kalman::EKF>[m[K’)
-   37 |     ekf = std::make_shared<kalman::EKF>(p[01;31m[K)[m[K;
-      |                                          [01;31m[K^[m[K
-In file included from [01m[K/usr/include/c++/9/bits/locale_conv.h:41[m[K,
-                 from [01m[K/usr/include/c++/9/locale:43[m[K,
-                 from [01m[K/usr/include/c++/9/iomanip:43[m[K,
-                 from [01m[K/usr/include/boost/math/policies/error_handling.hpp:12[m[K,
-                 from [01m[K/usr/include/boost/math/special_functions/round.hpp:14[m[K,
-                 from [01m[K/opt/ros/noetic/include/ros/time.h:58[m[K,
-                 from [01m[K/opt/ros/noetic/include/ros/ros.h:38[m[K,
-                 from [01m[K/opt/ros/noetic/include/tf2_ros/static_transform_broadcaster.h:38[m[K,
-                 from [01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/src/odom_run.hpp:4[m[K,
-                 from [01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/src/odom_run.cpp:1[m[K:
-[01m[K/usr/include/c++/9/bits/unique_ptr.h:305:7:[m[K [01;36m[Knote: [m[Kcandidate: ‘[01m[Kstd::unique_ptr<_Tp, _Dp>& std::unique_ptr<_Tp, _Dp>::operator=(std::unique_ptr<_Tp, _Dp>&&) [with _Tp = kalman::EKF; _Dp = std::default_delete<kalman::EKF>][m[K’
-  305 |       [01;36m[Koperator[m[K=(unique_ptr&& __u) noexcept
-      |       [01;36m[K^~~~~~~~[m[K
-[01m[K/usr/include/c++/9/bits/unique_ptr.h:305:30:[m[K [01;36m[Knote: [m[K  no known conversion for argument 1 from ‘[01m[Kstd::shared_ptr<kalman::EKF>[m[K’ to ‘[01m[Kstd::unique_ptr<kalman::EKF>&&[m[K’
-  305 |       operator=([01;36m[Kunique_ptr&& __u[m[K) noexcept
-      |                 [01;36m[K~~~~~~~~~~~~~^~~[m[K
-[01m[K/usr/include/c++/9/bits/unique_ptr.h:325:2:[m[K [01;36m[Knote: [m[Kcandidate: ‘[01m[Ktemplate<class _Up, class _Ep> typename std::enable_if<std::__and_<std::__and_<std::is_convertible<typename std::unique_ptr<_Up, _Ep>::pointer, typename std::__uniq_ptr_impl<_Tp, _Dp>::pointer>, std::__not_<std::is_array<_Up> > >, std::is_assignable<_T2&, _U2&&> >::value, std::unique_ptr<_Tp, _Dp>&>::type std::unique_ptr<_Tp, _Dp>::operator=(std::unique_ptr<_Up, _Ep>&&) [with _Up = _Up; _Ep = _Ep; _Tp = kalman::EKF; _Dp = std::default_delete<kalman::EKF>][m[K’
-  325 |  [01;36m[Koperator[m[K=(unique_ptr<_Up, _Ep>&& __u) noexcept
-      |  [01;36m[K^~~~~~~~[m[K
-[01m[K/usr/include/c++/9/bits/unique_ptr.h:325:2:[m[K [01;36m[Knote: [m[K  template argument deduction/substitution failed:
-[01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/src/odom_run.cpp:37:42:[m[K [01;36m[Knote: [m[K  ‘[01m[Kstd::shared_ptr<kalman::EKF>[m[K’ is not derived from ‘[01m[Kstd::unique_ptr<_Tp, _Dp>[m[K’
-   37 |     ekf = std::make_shared<kalman::EKF>(p[01;36m[K)[m[K;
-      |                                          [01;36m[K^[m[K
-In file included from [01m[K/usr/include/c++/9/bits/locale_conv.h:41[m[K,
-                 from [01m[K/usr/include/c++/9/locale:43[m[K,
-                 from [01m[K/usr/include/c++/9/iomanip:43[m[K,
-                 from [01m[K/usr/include/boost/math/policies/error_handling.hpp:12[m[K,
-                 from [01m[K/usr/include/boost/math/special_functions/round.hpp:14[m[K,
-                 from [01m[K/opt/ros/noetic/include/ros/time.h:58[m[K,
-                 from [01m[K/opt/ros/noetic/include/ros/ros.h:38[m[K,
-                 from [01m[K/opt/ros/noetic/include/tf2_ros/static_transform_broadcaster.h:38[m[K,
-                 from [01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/src/odom_run.hpp:4[m[K,
-                 from [01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/src/odom_run.cpp:1[m[K:
-[01m[K/usr/include/c++/9/bits/unique_ptr.h:334:7:[m[K [01;36m[Knote: [m[Kcandidate: ‘[01m[Kstd::unique_ptr<_Tp, _Dp>& std::unique_ptr<_Tp, _Dp>::operator=(std::nullptr_t) [with _Tp = kalman::EKF; _Dp = std::default_delete<kalman::EKF>; std::nullptr_t = std::nullptr_t][m[K’
-  334 |       [01;36m[Koperator[m[K=(nullptr_t) noexcept
-      |       [01;36m[K^~~~~~~~[m[K
-[01m[K/usr/include/c++/9/bits/unique_ptr.h:334:17:[m[K [01;36m[Knote: [m[K  no known conversion for argument 1 from ‘[01m[Kstd::shared_ptr<kalman::EKF>[m[K’ to ‘[01m[Kstd::nullptr_t[m[K’
-  334 |       operator=([01;36m[Knullptr_t[m[K) noexcept
-      |                 [01;36m[K^~~~~~~~~[m[K
-[01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/src/odom_run.cpp:[m[K In member function ‘[01m[Kvoid Odometry::kalman_filter_process(frame::LidarImuInit::Ptr&)[m[K’:
-[01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/src/odom_run.cpp:140:18:[m[K [01;31m[Kerror: [m[K‘[01m[Kdouble frame::Imu::first_lidar_time[m[K’ is private within this context
-  140 |         imu_ptr->[01;31m[Kfirst_lidar_time[m[K = tracker.first_lidar_time;
-      |                  [01;31m[K^~~~~~~~~~~~~~~~[m[K
-In file included from [01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/include/limu/sensors/sync_frame.hpp:5[m[K,
-                 from [01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/src/odom_run.hpp:9[m[K,
-                 from [01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/src/odom_run.cpp:1[m[K:
-[01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/include/limu/sensors/imu/frame.hpp:100:63:[m[K [01;36m[Knote: [m[Kdeclared private here
-  100 |         double time_in, prev_time_in, period, prev_timestamp, [01;36m[Kfirst_lidar_time[m[K;
-      |                                                               [01;36m[K^~~~~~~~~~~~~~~~[m[K
-[01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/src/odom_run.cpp:144:18:[m[K [01;31m[Kerror: [m[K‘[01m[Kbool frame::Imu::enabled[m[K’ is private within this context
-  144 |     if (imu_ptr->[01;31m[Kenabled[m[K)
-      |                  [01;31m[K^~~~~~~[m[K
-In file included from [01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/include/limu/sensors/sync_frame.hpp:5[m[K,
-                 from [01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/src/odom_run.hpp:9[m[K,
-                 from [01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/src/odom_run.cpp:1[m[K:
-[01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/include/limu/sensors/imu/frame.hpp:101:14:[m[K [01;36m[Knote: [m[Kdeclared private here
-  101 |         bool [01;36m[Kenabled[m[K, initialized, lidar_imu_done, need_init, imu_deskwed, first_frame;
-      |              [01;36m[K^~~~~~~[m[K
-[01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/src/odom_run.cpp:145:52:[m[K [01;31m[Kerror: [m[Kno matching function for call to ‘[01m[Kframe::Imu::initialize_propagate_undistort(kalman::EKF::Ptr&)[m[K’
-  145 |         imu_ptr->initialize_propagate_undistort(ekf[01;31m[K)[m[K;
-      |                                                    [01;31m[K^[m[K
-In file included from [01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/include/limu/sensors/sync_frame.hpp:5[m[K,
-                 from [01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/src/odom_run.hpp:9[m[K,
-                 from [01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/src/odom_run.cpp:1[m[K:
-[01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/include/limu/sensors/imu/frame.hpp:53:14:[m[K [01;36m[Knote: [m[Kcandidate: ‘[01m[Kvoid frame::Imu::initialize_propagate_undistort(kalman::EKF::Ptr&, int&)[m[K’
-   53 |         void [01;36m[Kinitialize_propagate_undistort[m[K(kalman::EKF::Ptr &ekf, LidarImuInit::Ptr &meas);
-      |              [01;36m[K^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[m[K
-[01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/include/limu/sensors/imu/frame.hpp:53:14:[m[K [01;36m[Knote: [m[K  candidate expects 2 arguments, 1 provided
-make[2]: *** [CMakeFiles/limu.dir/build.make:76: CMakeFiles/limu.dir/src/odom_run.cpp.o] Error 1
-make[2]: *** Waiting for unfinished jobs....
-make[2]: *** [CMakeFiles/limu.dir/build.make:63: CMakeFiles/limu.dir/src/kalman/ekf.cpp.o] Error 1
-make[1]: *** [CMakeFiles/Makefile2:225: CMakeFiles/limu.dir/all] Error 2
-make: *** [Makefile:141: all] Error 2
+In file included from [01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/include/limu/kalman/helper.hpp:5[m[K,
+                 from [01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/include/limu/kalman/states.hpp:6[m[K,
+                 from [01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/include/limu/kalman/ekf.hpp:9[m[K,
+                 from [01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/src/lio.hpp:12[m[K,
+                 from [01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/src/lio.cpp:1[m[K:
+[01m[K/usr/include/tbb/atomic.h:21:141:[m[K [01;36m[Knote: [m[K#pragma message: TBB Warning: tbb/atomic.h is deprecated. For details, please see Deprecated Features appendix in the TBB reference manual.
+   21 | #pragma message("TBB Warning: tbb/atomic.h is deprecated. For details, please see Deprecated Features appendix in the TBB reference manual."[01;36m[K)[m[K
+      |                                                                                                                                             [01;36m[K^[m[K
+In file included from [01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/include/limu/kalman/helper.hpp:5[m[K,
+                 from [01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/include/limu/kalman/states.hpp:6[m[K,
+                 from [01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/include/limu/kalman/ekf.hpp:9[m[K,
+                 from [01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/src/lio.hpp:12[m[K,
+                 from [01m[K/mnt/c/wslShared/robotics/lidar/lidar-imu-slam/env_ws/src/limu/src/lio.cpp:1[m[K:
+[01m[K/usr/include/tbb/atomic.h:21:141:[m[K [01;36m[Knote: [m[K#pragma message: TBB Warning: tbb/atomic.h is deprecated. For details, please see Deprecated Features appendix in the TBB reference manual.
+   21 | #pragma message("TBB Warning: tbb/atomic.h is deprecated. For details, please see Deprecated Features appendix in the TBB reference manual."[01;36m[K)[m[K
+      |                                                                                                                                             [01;36m[K^[m[K

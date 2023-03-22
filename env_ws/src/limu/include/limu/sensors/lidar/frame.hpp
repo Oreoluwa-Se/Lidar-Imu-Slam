@@ -59,7 +59,8 @@ namespace frame
 
         explicit Lidar(ros::NodeHandle &nh)
             : config(std::make_shared<ProcessingInfo>()),
-              prev_timestamp(0.0), scan_ang_vel(0.0), scan_count(0)
+              prev_timestamp(0.0), scan_ang_vel(0.0), scan_count(0),
+              Li_init_complete(false), lidar_end_time(0.0)
         {
             nh.param<double>("frame_rate", config->frame_rate, 10.0);
             nh.param<double>("max_range", config->max_range, 100.0);
@@ -96,7 +97,7 @@ namespace frame
         bool buffer_empty()
         {
             std::unique_lock<std::mutex> lock(data_mutex);
-            return processed_buffer.empty();
+            return split_buffer.empty();
         }
         // lidar information
 
@@ -106,24 +107,36 @@ namespace frame
             return processed_buffer.front();
         }
 
-        std::vector<double> get_segment_ts_front()
+        PointCloud::Ptr get_split_lidar_buffer_front()
         {
             std::unique_lock<std::mutex> lock(data_mutex);
-            return timestamps.front();
+            const auto &p = split_buffer.front();
+            return p.second;
+        }
+
+        double get_pc_time_ms()
+        {
+            std::unique_lock<std::mutex> lock(data_mutex);
+            const auto &p = split_buffer.front();
+            return p.second->points[0].curvature;
+        }
+
+        double get_pc_time_s()
+        {
+            return get_pc_time_ms() / double(1000);
         }
 
         double curr_acc_segment_time()
         {
             std::unique_lock<std::mutex> lock(data_mutex);
-            return accumulated_segment_time.front();
+            const auto &p = split_buffer.front();
+            return p.first;
         }
 
         void pop()
         {
             std::unique_lock<std::mutex> lock(data_mutex);
-            timestamps.pop_front();
-            processed_buffer.pop_front();
-            accumulated_segment_time.pop_front();
+            split_buffer.pop_front();
         }
 
         // functions for broadcasting ros tings
@@ -135,6 +148,7 @@ namespace frame
         geometry_msgs::TransformStamped current_pose;
         nav_msgs::Odometry odom_msg;
         std::shared_ptr<ProcessingInfo> config;
+        double lidar_end_time;
 
     private:
         // functions
@@ -145,26 +159,26 @@ namespace frame
             angle_limit = config->max_angle - config->min_angle;
         }
 
-        void sort_clouds(PointCloud::Ptr &surface_cloud, std::vector<double> &valid_timestamp);
+        void iqr_processing(PointCloud::Ptr &surface_cloud, std::vector<double> &);
 
-        void split_clouds(PointCloud::Ptr &surface_cloud, std::vector<double> &valid_timestamp, double &message_time);
+        void sort_clouds(PointCloud::Ptr &surface_cloud);
+
+        void split_clouds(const PointCloud::Ptr &surface_cloud, double &message_time);
 
         // attributes
         sensor_msgs::PointCloud2::ConstPtr msg_holder;
-        // important for pointcloud processing
-        std::deque<std::vector<double>> timestamps;   // individual timestamps for each buffer.
-        std::deque<double> accumulated_segment_time;  // total segment time for each pointcloud in buffer.
-        std::deque<PointCloud::Ptr> processed_buffer; // holds processed pointcloud from msg.
+        std::deque<PointCloud::Ptr> processed_buffer;                // holds processed pointcloud from msg.
+        std::deque<std::pair<double, PointCloud::Ptr>> split_buffer; // buffer split into towns.
 
         // class manipulators
         std::mutex data_mutex;
         double prev_timestamp;
         double scan_ang_vel;
-
         double angle_limit;
         double blind_sq;
         int scan_count;
         double max_sq;
+        bool Li_init_complete;
     };
 }
 #endif

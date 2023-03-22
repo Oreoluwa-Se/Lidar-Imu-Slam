@@ -1,6 +1,9 @@
 #ifndef HELPER_HPP
 #define HELPER_HPP
+
 #include "common.hpp"
+#include <unordered_map>
+#include <tbb/parallel_for.h>
 
 namespace utils
 {
@@ -16,10 +19,8 @@ namespace utils
         return R;
     }
 
-    inline std::tuple<Eigen::Matrix3d, std::unique_ptr<Eigen::Matrix3d[]>> extract_rot_dr(const Eigen::Vector4d &q)
+    inline Eigen::Matrix3d extract_rot_dr(const Eigen::Vector4d &q, Eigen::Matrix3d (&dR)[4])
     {
-        std::unique_ptr<Eigen::Matrix3d[]> dR(new Eigen::Matrix3d[4]);
-
         // use perturbation to calculate derivative
         for (int i = 0; i < 4; i++)
         {
@@ -29,7 +30,7 @@ namespace utils
             dR[i] = dRi;
         }
 
-        return {quat2rmat(q), std::move(dR)};
+        return quat2rmat(q);
     }
 
     inline Eigen::Matrix3d ang_vel_to_rmat(const Eigen::Vector3d &ang_vel, double dt)

@@ -3,7 +3,7 @@ project(limu)
 
 ## Compile as C++11, supported in ROS Kinetic and newer
 add_compile_options(-std=c++14 -O3 -pthread)
-set(CMAKE_BUILD_TYPE Release) 
+# set(CMAKE_BUILD_TYPE Release) 
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
@@ -74,14 +74,14 @@ catkin_package(
   DEPENDS EIGEN3 PCL
 )
 
-add_executable(odom_run src/odom_run.cpp)
+add_executable(lio src/lio.cpp)
   
-add_dependencies(odom_run 
+add_dependencies(lio 
 	${sensor_node_EXPORTED_TARGETS} 
 	${catkin_EXPORTED_TARGETS})
 
 target_link_libraries(
-	odom_run
+	lio
 	${PROJECT_NAME}
 	${catkin_LIBRARIES}
 	${Sophus_LIBRARIES}

@@ -1,7 +1,5 @@
 #include "limu/sensors/lidar/icp.hpp"
 #include <tsl/robin_map.h>
-#include <tbb/parallel_for.h>
-#include <tbb/concurrent_vector.h>
 
 namespace
 {
@@ -58,7 +56,7 @@ namespace lidar
     ReturnTuple KissICP::register_frame(const utils::Vec3dVector &frame)
     {
         // returns {source, frame_downsample}
-        utils::Vec3_Vec3Tuple processed_frame = voxelize(frame, config.voxel_size);
+        utils::Vec3_Vec3Tuple processed_frame = voxelize(frame);
         auto &down_sampled = std::get<1>(processed_frame);
         auto &source = std::get<0>(processed_frame);
 
@@ -85,53 +83,14 @@ namespace lidar
         return {down_sampled, source, new_pose};
     }
 
-    utils::Vec3dVector KissICP::iqr_processing(const utils::Vec3dVector &frame)
+    utils::Vec3_Vec3Tuple KissICP::voxelize(const utils::Vec3dVector &frame)
     {
-        // calculate distance for each point
-        const size_t frame_size = frame.size();
-        std::vector<double> distances(frame_size);
-        tbb::parallel_for(
-            std::size_t(0), frame_size,
-            [&](std::size_t idx)
-            {
-                const auto &x = frame[idx].x();
-                const auto &y = frame[idx].y();
-                const auto &z = frame[idx].z();
-                distances[idx] = x * x + y * y + z * z;
-            });
-
-        const auto &iqr_val = outlier::IQR(distances);
-        double low_bound = iqr_val[0] - IQR_TUCHEY * iqr_val[2];
-        double high_bound = iqr_val[1] + IQR_TUCHEY * iqr_val[2];
-
-        tbb::concurrent_vector<utils::Vec3d> inliers;
-        utils::Vec3dVector out_vec;
-        out_vec.reserve(frame_size);
-        inliers.reserve(frame_size);
-
-        tbb::parallel_for(
-            std::size_t(0), frame_size,
-            [&](std::size_t idx)
-            {
-                const auto &distance = distances[idx];
-                if (distance >= low_bound && distance <= high_bound)
-                    inliers.emplace_back(frame[idx]);
-            });
-
-        std::move(inliers.begin(), inliers.end(), std::back_inserter(out_vec));
-
-        return out_vec;
-    }
-
-    utils::Vec3_Vec3Tuple KissICP::voxelize(const utils::Vec3dVector &frame, const double vox_size)
-    {
+        const double vox_size = config.voxel_size;
         // convert point clouds to eigen
         const auto downsample = voxel_downsample(frame, vox_size * 0.5);
         const auto source = voxel_downsample(downsample, vox_size * 1.5);
 
-        // want to remove outliers in source
-        const auto source_ref = iqr_processing(source);
-        return {source_ref, downsample};
+        return {source, downsample};
     }
 
     // used for robust kernel during ICP

@@ -15,17 +15,19 @@ namespace frame
 
         LidarImuInit()
         {
+            lidar_last_time = 0.0;
             lidar_beg_time = 0.0;
             this->processed_frame.reset(new PointCloud());
         }
 
-        double lidar_beg_time;
+        double lidar_beg_time, lidar_last_time;
         std::vector<double> time_buffer;
         std::deque<sensor_msgs::Imu::ConstPtr> imu_buffer;
         utils::Vec3d mean_acc;
 
         PointCloud::Ptr processed_frame; // Holds frames frames processed from initial reading.
-        utils::Vec3dVector deskewed;     // deskewed frames.
+        utils::Vec3dVector map_points;   // stored in the map
+        utils::Vec3dVector icp_points;   // used for estimating pose
 
         inline double get_mean_acc_norm()
         {

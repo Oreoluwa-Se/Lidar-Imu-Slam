@@ -1,9 +1,7 @@
 #include "limu/sensors/lidar/frame.hpp"
-#include <numeric>
-namespace
-{
-    constexpr int MIN_SCAN_COUNT = 20;
-}
+#include <tbb/concurrent_vector.h>
+#include <tbb/parallel_for.h>
+#include <unordered_map>
 
 namespace frame
 {
@@ -17,85 +15,131 @@ namespace frame
         {
             ROS_ERROR("Lidar Buffer Looped. Clearning buffer");
             processed_buffer.clear();
-            timestamps.clear();
-            accumulated_segment_time.clear();
+            split_buffer.clear();
         }
 
         msg_holder = std::move(msg);
         prev_timestamp = curr_time;
     }
 
-    void Lidar::sort_clouds(
-        PointCloud::Ptr &surface_cloud, std::vector<double> &valid_timestamp)
+    void Lidar::sort_clouds(PointCloud::Ptr &surface_cloud)
     {
-        std::vector<int> indices(valid_timestamp.size());
-        std::iota(indices.begin(), indices.end(), 0);
-
-        auto compare_curvature = [&](const int i, const int j)
+        auto compare_curvature = [&](const utils::PointNormal &i, const utils::PointNormal &j)
         {
-            return surface_cloud->points[i].curvature < surface_cloud->points[j].curvature;
+            return i.curvature < j.curvature;
         };
-        std::sort(indices.begin(), indices.end(), compare_curvature);
-
-        std::vector<utils::PointNormal> inliers;
-        std::vector<double> valid_times_sorted;
-        for (const auto idx : indices)
-        {
-            inliers.emplace_back(surface_cloud->points[idx]);
-            valid_times_sorted.emplace_back(valid_timestamp[idx]);
-        }
-
-        // replace in original points
-        surface_cloud->points.assign(inliers.begin(), inliers.end());
-        valid_timestamp = std::move(valid_times_sorted);
+        std::sort(
+            surface_cloud->points.begin(), surface_cloud->points.end(),
+            compare_curvature);
     }
 
-    void Lidar::split_clouds(
-        PointCloud::Ptr &surface_cloud, std::vector<double> &valid_timestamp, double &message_time)
+    void Lidar::split_clouds(const PointCloud::Ptr &surface_cloud, double &message_time)
     {
-
         double message_time_ms = message_time * 1000; // convert to ms
         double last_frame_end_time = message_time_ms;
+        // std::deque<std::map<double, double>> time_acctime_map_queue;
+        // std::map<double, double> time_acctime_map;
+        // std::vector<double> curvature_key_per_segment;
+        // std::deque<PointCloud::Ptr> buffer;
 
-        const size_t valid_pcl_size = surface_cloud->points.size();
+        // for (const auto &point : surface_cloud->points)
+        // {
+        //     if (curvature_key_per_segment.empty() || point.curvature != curvature_key_per_segment.back())
+        //     {
+        //         curvature_key_per_segment.push_back(point.curvature);
+        //         buffer.emplace_back(new PointCloud());
+        //     }
+        // }
 
-        // split processed frame
-        int valid_num = 0, cut_num = 0;
-        const int required_cut_num = (scan_count < MIN_SCAN_COUNT) ? 1 : config->frame_split_num;
+        // // split vectors
+        // for (const auto &point : surface_cloud->points)
+        // {
+        //     auto loc = std::find(curvature_key_per_segment.begin(), curvature_key_per_segment.end(), point.curvature) - curvature_key_per_segment.begin();
+        //     buffer[loc]->points.push_back(point);
+        // }
 
-        PointCloud::Ptr split_surface(new PointCloud());
-        std::vector<double> times;
+        // // create map to link curvature to accumulated segment time.
+        // for (auto &key : curvature_key_per_segment)
+        // {
+        //     time_acctime_map[key] = key + message_time_ms - last_frame_end_time;
+        //     last_frame_end_time += time_acctime_map[key];
+        // }
 
-        for (auto idx = 1; idx < valid_pcl_size; ++idx)
+        // segment_count.push_back(static_cast<int>(curvature_key_per_segment.size()));
+        // time_acctime_map_queue.push_back(time_acctime_map);
+
+        // for (const auto &buff : buffer)
+        // {
+        //     // accumulated segment time and pointcloud assosciated.
+        //     split_buffer.emplace_back(time_acctime_map[buff->points[0].curvature], std::move(buff));
+        // }
+
+        std::vector<std::unordered_map<double, double>> time_acctime_maps;
+        std::vector<double> curvature_keys;
+        std::deque<std::pair<double, PointCloud::Ptr>> buffer;
+
+        int cur_segment = -1;
+        // split pointcloud into curvature-keyed segments
+        for (const auto &point : surface_cloud->points)
         {
-            valid_num++;
-
-            // accumulate time elapsed at each point.
-            surface_cloud->points[idx].curvature += message_time_ms - last_frame_end_time;
-            split_surface->points.push_back(std::move(surface_cloud->points[idx]));
-
-            times.push_back(std::move(valid_timestamp[idx]));
-
-            if (valid_num == static_cast<int>(((cut_num + 1) * valid_pcl_size / required_cut_num) - 1))
+            if (curvature_keys.empty() || point.curvature != curvature_keys.back())
             {
-                cut_num++;
-                // new pointer
-                PointCloud::Ptr temp(new PointCloud());
-                *temp = *split_surface;
-                // update holders
-                processed_buffer.emplace_back(std::move(temp));
-                timestamps.push_back(utils::normalize_timestamps(times));
-
-                accumulated_segment_time.push_back(last_frame_end_time / double(1000)); // sec
-
-                // increment or reset parameters
-                last_frame_end_time += surface_cloud->points[idx].curvature;
-                times.clear();
-                split_surface->points.clear();
-                split_surface->reserve(valid_pcl_size * 2 / required_cut_num);
-                times.reserve(split_surface->points.size());
+                curvature_keys.push_back(point.curvature);
+                buffer.emplace_back(0.0, PointCloud::Ptr(new PointCloud()));
+                time_acctime_maps.emplace_back();
+                cur_segment++;
             }
+
+            time_acctime_maps[cur_segment][point.curvature] = point.curvature + message_time_ms - last_frame_end_time;
+            last_frame_end_time += time_acctime_maps[cur_segment][point.curvature];
+            buffer[cur_segment].second->points.push_back(point);
         }
+
+        // flatten split buffer and time-accumulation maps
+        for (size_t i = 0; i < curvature_keys.size(); i++)
+        {
+            for (const auto &point : buffer[i].second->points)
+            {
+                buffer[i].first = time_acctime_maps[i][point.curvature];
+                buffer[i].second->points.push_back(point);
+            }
+            // clear unused memory
+            buffer[i].second->points.shrink_to_fit();
+        }
+
+        std::move(
+            std::make_move_iterator(buffer.begin()),
+            std::make_move_iterator(buffer.end()),
+            std::back_inserter(split_buffer));
+    }
+
+    void Lidar::iqr_processing(PointCloud::Ptr &surface_cloud, std::vector<double> &dist)
+    {
+        const auto &iqr_val = outlier::IQR(dist);
+        double low_bound = iqr_val[0] - IQR_TUCHEY * iqr_val[2];
+        double high_bound = iqr_val[1] + IQR_TUCHEY * iqr_val[2];
+
+        tbb::concurrent_vector<utils::PointNormal> inliers;
+        inliers.reserve(dist.size());
+
+        tbb::parallel_for(
+            std::size_t(0), dist.size(),
+            [&](std::size_t idx)
+            {
+                const auto &distance = dist[idx];
+                if (distance >= low_bound && distance <= high_bound)
+                    inliers.emplace_back(surface_cloud->points[idx]);
+            });
+
+        if (!Li_init_complete)
+        { // needed for initializing the extrninics
+            PointCloud::Ptr processed(new PointCloud());
+            processed->points.assign(surface_cloud->points.begin(), surface_cloud->points.end());
+            processed_buffer.push_back(std::move(processed));
+            processed.reset();
+        }
+
+        surface_cloud->points.assign(inliers.begin(), inliers.end());
     }
 
     void Lidar::process_frame()
@@ -112,17 +156,14 @@ namespace frame
         // storage initializer
         PointCloud::Ptr surface_cloud(new PointCloud());
         surface_cloud->reserve(cloud_size);
-        std::vector<double> valid_timestamp;
-
-        valid_timestamp.reserve(cloud_size);
+        std::vector<double> distance;
+        distance.reserve(cloud_size);
 
         // holders
         std::vector<bool> is_first(config->num_scan_lines, false);
         std::vector<double> yaw_fp(config->num_scan_lines, 0.0);
         std::vector<double> yaw_last(config->num_scan_lines, 0.0);
         std::vector<double> time_last(config->num_scan_lines, 0.0);
-
-        const auto extracted_time = utils::get_time_stamps(msg_holder);
 
         // want to be able to calculate offset time between first scan and last scan from the point cloud
         bool has_offset_time = !cloud->points.empty() && cloud->points.back().timestamp > 0;
@@ -182,14 +223,16 @@ namespace frame
             }
 
             surface_cloud->points.emplace_back(added_pt);
-            valid_timestamp.emplace_back(extracted_time[i_dx]);
+            distance.push_back(dist);
         }
 
+        iqr_processing(surface_cloud, distance);
+
         // sort according to increasing curvature.
-        sort_clouds(surface_cloud, valid_timestamp);
+        sort_clouds(surface_cloud);
 
         // partition pointclouds when necessary.
-        split_clouds(surface_cloud, valid_timestamp, message_time);
+        split_clouds(surface_cloud, message_time);
     }
 
     void Lidar::set_current_pose_nav(
