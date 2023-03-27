@@ -24,6 +24,7 @@ namespace frame
         std::vector<double> time_buffer;
         std::deque<sensor_msgs::Imu::ConstPtr> imu_buffer;
         utils::Vec3d mean_acc;
+        utils::Vec3d curr_ang_vel, curr_acc;
 
         PointCloud::Ptr processed_frame; // Holds frames frames processed from initial reading.
         utils::Vec3dVector map_points;   // stored in the map

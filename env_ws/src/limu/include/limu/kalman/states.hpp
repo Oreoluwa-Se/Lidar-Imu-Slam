@@ -60,10 +60,46 @@ namespace odometry
     constexpr int Q_BAA_DRIFT = 9;
     constexpr int Q_DIM = 12;
 
+    constexpr int h_matrix_col = 15;
+
+    struct Pose6D
+    {
+        EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
+        Pose6D(
+            const double offset_time, const Eigen::Vector3d &acc,
+            const Eigen::Vector3d &gyr, const Eigen::Vector3d &vel,
+            const Eigen::Vector3d &pos, const Eigen::Matrix3d &rot)
+            : offset_time(offset_time), acc(acc), gyr(gyr), vel(vel),
+              pos(pos), rot(rot){};
+
+        double offset_time;
+        Eigen::Vector3d acc;
+        Eigen::Vector3d gyr;
+        Eigen::Vector3d vel;
+        Eigen::Vector3d pos;
+        Eigen::Matrix3d rot;
+    };
+
+    struct PARAMETERS
+    {
+        typedef std::shared_ptr<PARAMETERS> Ptr;
+        double noise_scale;
+        // Imu_noise parameters
+        double init_pos_noise;
+        double init_vel_noise;
+        double init_ori_noise;
+        double init_bga_noise;
+        double init_baa_noise;
+        double init_bat_noise;
+        double acc_process_noise;
+        double gyro_process_noise;
+        double acc_process_noise_rev;
+        double gyro_process_noise_rev;
+    };
+
     struct BaseState
     {
         EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
-
         BaseState()
             : pos(Eigen::Vector3d::Zero()),         // estimated position at imu
               vel(Eigen::Vector3d::Zero()),         // estimated velocity at imu (world frame)
@@ -76,6 +112,22 @@ namespace odometry
             (rot << 1, 0, 0, 0).finished();          // estimated rotation at imu
             (offset_R_L_I << 1, 0, 0, 0).finished(); // rotation from lidar frame L to imu frame I
             prev_quat = rot;                         // tracks previous quaternion
+        }
+
+        explicit BaseState(const PARAMETERS::Ptr &parameters)
+            : pos(Eigen::Vector3d::Zero()),          // estimated position at imu
+              vel(Eigen::Vector3d::Zero()),          // estimated velocity at imu (world frame)
+              gyro_bias(Eigen::Vector3d::Zero()),    // gyroscope bias
+              acc_bias(Eigen::Vector3d::Zero()),     // acclerator bias
+              mult_bias(Eigen::Vector3d::Zero()),    // multiplicative bias
+              grav(Eigen::Vector3d::Zero()),         // estimated gravity acceleration
+              offset_T_L_I(Eigen::Vector3d::Zero()), // translation from lidar frame L to imu frame I
+              params(parameters)
+        {
+            (rot << 1, 0, 0, 0).finished();          // estimated rotation at imu
+            (offset_R_L_I << 1, 0, 0, 0).finished(); // rotation from lidar frame L to imu frame I
+            prev_quat = rot;                         // tracks previous quaternion
+            process_covariance_setup();
         }
 
         Eigen::Matrix4d quat_4x4_rot(const Eigen::Vector3d &xg, const double dt, bool b_input = true)
@@ -100,7 +152,37 @@ namespace odometry
             return A;
         }
 
-        void process_covariance(Eigen::MatrixXd &dydx, Eigen::Matrix3d &R, const Eigen::Matrix4d &A, double dt)
+        Eigen::Matrix3d L_I_rot_m()
+        {
+            return utils::quat2rmat(offset_R_L_I);
+        }
+
+        Eigen::Matrix3d rot_m()
+        {
+            return utils::quat2rmat(rot);
+        }
+
+        void initialize_state_covariance()
+        {
+            P.setIdentity();
+
+            // imu - global extrinsic
+            P.block(POS, POS, 3, 3) *= utils::square(params->init_pos_noise);
+            P.block(VEL, VEL, 3, 3) *= utils::square(params->init_vel_noise);
+            P.block(ORI, ORI, 4, 4) *= utils::square(params->init_ori_noise);
+
+            // imu bias initialization
+            P.block(BGA, BGA, 3, 3) *= utils::square(params->init_bga_noise);
+            P.block(BAA, BAA, 3, 3) *= utils::square(params->init_baa_noise);
+            P.block(BAT, BAT, 3, 3) *= utils::square(params->init_bat_noise);
+            P.block(GRAV, GRAV, 3, 3) *= utils::square(params->init_bat_noise);
+
+            // imu -lidar extrinsic
+            P.block(POS_LIDAR_IMU, POS_LIDAR_IMU, 3, 3) *= utils::square(params->init_pos_noise);
+            P.block(ORI_LIDAR_IMU, ORI_LIDAR_IMU, 4, 4) *= utils::square(params->init_ori_noise);
+        }
+
+        void dydq_setup(Eigen::MatrixXd &dydx, Eigen::Matrix3d &R, const Eigen::Matrix4d &A, double dt)
         {
             // derivatives of velocity wrt acceleration noise
             dydq.block(VEL, Q_ACC, 3, 3) = R.transpose() * dt;
@@ -120,28 +202,213 @@ namespace odometry
             dydq.block(VEL, Q_GYRO, 3, 3) = dydx.block(VEL, ORI, 3, 4) * dydq.block(ORI, Q_GYRO, 4, 3);
         }
 
-        Eigen::Vector3d pos;          // estimated imu position wrt global
-        Eigen::Vector3d vel;          // estimated imu velocity wrt global
-        Eigen::Vector4d rot;          // estimated imu rotation wrt global
-        Eigen::Vector3d gyro_bias;    // gyroscope bias
-        Eigen::Vector3d acc_bias;     // acclerator bias
-        Eigen::Vector3d mult_bias;    // multiplicative bias
-        Eigen::Vector3d grav;         // estimated gravity acceleration
-        Eigen::Vector3d offset_T_L_I; // rotation from lidar frame L to imu frame I
-        Eigen::Vector4d offset_R_L_I; // translation from lidar frame L to imu frame I
-        Eigen::MatrixXd dydx;         // used in predict step
-        Eigen::MatrixXd dydq;         // for noise covariance
+        void process_covariance_setup()
+        {
+            // covariance noise Q setup
+            Q.block(Q_ACC, Q_ACC, 3, 3).setIdentity(3, 3) *= utils::square(params->acc_process_noise);
+            Q.block(Q_GYRO, Q_GYRO, 3, 3).setIdentity(3, 3) *= utils::square(params->gyro_process_noise);
+            Q *= params->noise_scale;
+        }
 
-        Eigen::Vector4d prev_quat; // should be updated after state propagation
+        void noise_covariance_increment(double dt)
+        {
+            // random walk bias for gyro
+            if (params->gyro_process_noise > 0.0)
+            {
+                const double qc = utils::square(params->gyro_process_noise);
+                const double theta = params->gyro_process_noise_rev;
+                Q.block(Q_BGA_DRIFT, Q_BGA_DRIFT, 3, 3).setIdentity(3, 3) *= params->noise_scale * qc;
+
+                if (theta > 0.0)
+                    Q.block(Q_BGA_DRIFT, Q_BGA_DRIFT, 3, 3) *= (1 - exp(-2 * dt * theta)) / (2 * theta);
+            }
+
+            // random walk bias for accelerometer
+            if (params->acc_process_noise > 0.0)
+            {
+                const double qc = utils::square(params->acc_process_noise);
+                const double theta = params->acc_process_noise_rev;
+                Q.block(Q_BAA_DRIFT, Q_BAA_DRIFT, 3, 3).setIdentity(3, 3) *= params->noise_scale * qc;
+
+                if (theta > 0.0)
+                    Q.block(Q_BAA_DRIFT, Q_BAA_DRIFT, 3, 3) *= (1 - exp(-2 * dt * theta)) / (2 * theta);
+            }
+        }
+
+        template <int Rows = Eigen::Dynamic>
+        Eigen::Matrix<double, Rows, h_matrix_col> iterative_properties()
+        {
+            /*
+             * To return state properties affected by measurement and used in the iterative step.
+             * properies are: pos, rot, offset_trans_lidar_imu, offset_rot_lidar_imu
+             * note the offset_trans_lidar_imu to be put in quaternion form
+             */
+            Eigen::Matrix<double, Rows, h_matrix_col> props;
+            props.setZero();
+            props.block(0, 0, Rows, 7) = P.block(0, 0, Rows, 7);
+            props.block(0, 8, Rows, 7) = P.block(0, POS_LIDAR_IMU, Rows, 7);
+
+            return props;
+        }
+
+        template <int State_DIM = Eigen::Dynamic, int Num_Measurements = Eigen::Dynamic>
+        Eigen::Matrix<double, h_matrix_col, Num_Measurements> col_iterative_properties(const Eigen::Matrix<double, State_DIM, Num_Measurements> &PHT)
+        {
+            /*
+             * Given the PHT matrix want to extract relevant information from the column
+             * properies are: pos, rot, offset_trans_lidar_imu, offset_rot_lidar_imu
+             * note the offset_trans_lidar_imu to be put in quaternion form
+             */
+            Eigen::Matrix<double, h_matrix_col, Num_Measurements> props;
+            props.setZero();
+            props.block(0, 0, 7, Num_Measurements) = PHT.block(0, 0, 7, Num_Measurements);
+            props.block(8, 0, 7, Num_Measurements) = PHT.block(POS_LIDAR_IMU, 0, 7, Num_Measurements);
+
+            return props;
+        }
+
+        Eigen::Vector4d increment_q(Eigen::Vector4d &orig, Eigen::Vector4d &dx)
+        {
+            Eigen::Quaterniond q1(orig);
+            Eigen::Quaterniond q2(dx);
+
+            Eigen::Quaterniond res = q2 * q1;
+            res.normalize();
+            return res.coeffs();
+        }
+
+        Eigen::Vector4d decrement_q(Eigen::Vector4d &orig, Eigen::Vector4d &dx)
+        {
+            Eigen::Quaterniond q1(orig);
+            Eigen::Quaterniond q2(dx);
+
+            Eigen::Quaterniond res = q2.inverse() * q1;
+            res.normalize();
+            return res.coeffs();
+        }
+
+        Eigen::Vector3d pos;                   // estimated imu position wrt global
+        Eigen::Vector3d vel;                   // estimated imu velocity wrt global
+        Eigen::Vector4d rot;                   // estimated imu rotation wrt global
+        Eigen::Vector3d gyro_bias;             // gyroscope bias
+        Eigen::Vector3d acc_bias;              // acclerator bias
+        Eigen::Vector3d mult_bias;             // multiplicative bias
+        Eigen::Vector3d grav;                  // estimated gravity acceleration
+        Eigen::Vector3d offset_T_L_I;          // rotation from lidar frame L to imu frame I
+        Eigen::Vector4d offset_R_L_I;          // translation from lidar frame L to imu frame I
+        Eigen::MatrixXd dydx;                  // used in predict step
+        Eigen::MatrixXd dydq;                  // for noise covariance
+        Eigen::Matrix<double, Q_DIM, Q_DIM> Q; // process covariance
+        Eigen::MatrixXd P;                     // state covariance
+        Eigen::Vector4d prev_quat;             // should be updated after state propagation
+        PARAMETERS::Ptr params;
     };
 
     // EXTENSIONS
     struct StateInput : public BaseState
     {
-        StateInput() : BaseState()
+        StateInput()
+            : BaseState()
         {
             dydx = Eigen::MatrixXd::Zero(STATE_IN_DIM, STATE_IN_DIM);
             dydq = Eigen::MatrixXd::Zero(STATE_IN_DIM, Q_DIM);
+            P = Eigen::MatrixXd::Zero(STATE_IN_DIM, STATE_IN_DIM);
+        }
+
+        explicit StateInput(PARAMETERS::Ptr &parameters) : BaseState(parameters)
+        {
+            dydx = Eigen::MatrixXd::Zero(STATE_IN_DIM, STATE_IN_DIM);
+            dydq = Eigen::MatrixXd::Zero(STATE_IN_DIM, Q_DIM);
+            P = Eigen::MatrixXd::Zero(STATE_IN_DIM, STATE_IN_DIM);
+
+            // same base state covariance
+            initialize_state_covariance();
+        }
+
+        // constructor definitions
+        StateInput(const StateInput &b) : BaseState()
+        {
+            this->pos = b.pos;
+            this->vel = b.vel;
+            this->rot = b.rot;
+            this->gyro_bias = b.gyro_bias;
+            this->acc_bias = b.acc_bias;
+            this->mult_bias = b.mult_bias;
+            this->grav = b.grav;
+            this->offset_T_L_I = b.offset_T_L_I;
+            this->offset_R_L_I = b.offset_R_L_I;
+            this->dydx = b.dydx;
+            this->dydq = b.dydq;
+            this->Q = b.Q;
+            this->P = b.P;
+            this->prev_quat = b.prev_quat;
+        }
+
+        StateInput &operator=(const StateInput &b)
+        {
+            this->pos = b.pos;
+            this->vel = b.vel;
+            this->rot = b.rot;
+            this->gyro_bias = b.gyro_bias;
+            this->acc_bias = b.acc_bias;
+            this->mult_bias = b.mult_bias;
+            this->grav = b.grav;
+            this->offset_T_L_I = b.offset_T_L_I;
+            this->offset_R_L_I = b.offset_R_L_I;
+            this->dydx = b.dydx;
+            this->dydq = b.dydq;
+            this->Q = b.Q;
+            this->P = b.P;
+            this->prev_quat = b.prev_quat;
+
+            return *this;
+        }
+
+        StateInput operator+(const Eigen::Matrix<double, STATE_IN_DIM, 1> &m)
+        {
+            StateInput a;
+            a.pos = this->pos + m.segment(POS, 3);
+            a.vel = this->vel + m.segment(VEL, 3);
+
+            Eigen::Vector4d ori_val = m.segment(ORI, 4);
+            a.rot = increment_q(this->rot, ori_val);
+
+            a.gyro_bias = this->gyro_bias + m.segment(BGA, 3);
+            a.acc_bias = this->acc_bias + m.segment(BAA, 3);
+            a.mult_bias = this->mult_bias;
+            a.grav = this->grav + m.segment(GRAV, 3);
+            a.offset_T_L_I = this->offset_T_L_I + m.segment(POS_LIDAR_IMU, 3);
+
+            ori_val = m.segment(ORI_LIDAR_IMU, 4);
+            a.offset_R_L_I = decrement_q(this->offset_R_L_I, ori_val);
+
+            a.dydx = this->dydx;
+            a.dydq = this->dydq;
+            a.Q = this->Q;
+            a.P = this->P;
+            a.prev_quat = this->prev_quat;
+
+            return a;
+        }
+
+        StateInput &operator+=(const Eigen::Matrix<double, STATE_IN_DIM, 1> &m)
+        {
+            this->pos += m.segment(POS, 3);
+            this->vel += m.segment(VEL, 3);
+
+            Eigen::Vector4d ori_val = m.segment(ORI, 4);
+            this->rot = increment_q(this->rot, ori_val);
+
+            this->gyro_bias += m.segment(BGA, 3);
+            this->acc_bias += m.segment(BAA, 3);
+            this->mult_bias = m.segment(BAT, 3);
+            this->grav += m.segment(GRAV, 3);
+            this->offset_T_L_I += m.segment(POS_LIDAR_IMU, 3);
+
+            ori_val = m.segment(ORI_LIDAR_IMU, 4);
+            this->offset_R_L_I = decrement_q(this->offset_R_L_I, ori_val);
+
+            return *this;
         }
 
         Eigen::Matrix<double, STATE_IN_DIM, 1> get_f(const Eigen::Vector3d &xg, const Eigen::Vector3d &xa)
@@ -157,7 +424,6 @@ namespace odometry
             m.segment(VEL, 3) += (R.transpose() * Txab + grav);
 
             // orientation -> going to be an issue here
-            // Eigen::Matrix4d A = quat_4x4_rot(xg, 1.0); // apply this update later
             m.segment(ORI, 4) = rot;
 
             return m;
@@ -194,23 +460,8 @@ namespace odometry
             // derivative of quaternion wrt self
             dydx.block(ORI, ORI, 4, 4) = A;
 
-            // // derivatives of velocity wrt acceleration noise
-            // dydq.block(VEL, Q_ACC, 3, 3) = R.transpose() * dt;
+            dydq_setup(dydx, R, A, dt);
 
-            // // quaternion derivatices w.r.t gyroscope noise
-            // Eigen::Matrix4d dS0, dS1, dS2;
-            // (dS0 << 0, dt / 2, 0, 0, -dt / 2, 0, 0, 0, 0, 0, 0, dt / 2, 0, 0, -dt / 2, 0).finished();
-            // (dS1 << 0, 0, dt / 2, 0, 0, 0, 0, -dt / 2, -dt / 2, 0, 0, 0, 0, dt / 2, 0, 0).finished();
-            // (dS2 << 0, 0, 0, dt / 2, 0, 0, dt / 2, 0, 0, -dt / 2, 0, 0, -dt / 2, 0, 0, 0).finished();
-            // dydq.block(ORI, Q_GYRO, 4, 1) = A * dS0 * prev_quat;
-            // dydq.block(ORI, Q_GYRO + 1, 4, 1) = A * dS1 * prev_quat;
-            // dydq.block(ORI, Q_GYRO + 2, 4, 1) = A * dS2 * prev_quat;
-            // dydq.block(BGA, Q_BGA_DRIFT, 3, 3).setIdentity(3, 3);
-            // dydq.block(BAA, Q_BAA_DRIFT, 3, 3).setIdentity(3, 3);
-
-            // // velocity and orientation wrt sensors
-            // dydq.block(VEL, Q_GYRO, 3, 3) = dydx.block(VEL, ORI, 3, 4) * dydq.block(ORI, Q_GYRO, 4, 3);
-            process_covariance(dydx, R, A, dt);
             // derivative of velocity w.r.t gyro bias
             dydx.block(VEL, BGA, 3, 3) = -dydq.block(VEL, Q_GYRO, 3, 3);
 
@@ -224,18 +475,168 @@ namespace odometry
             dydx.block(VEL, BAT, 3, 3) = R.transpose() * xa.asDiagonal() * dt;
         }
 
-        // void h_model_input() {}
+        void increment(double dt, const Eigen::Vector3d &xg, const Eigen::Vector3d &xa)
+        {
+            const Eigen::Matrix<double, STATE_IN_DIM, 1> curr_state = get_f(xg, xa);
+
+            // increment imu_world_pos.
+            pos += curr_state.segment(VEL, 3) * dt;
+
+            // increment xg.
+            Eigen::Matrix4d A = quat_4x4_rot(xg, -dt, true);
+            Eigen::Matrix3d R = utils::quat2rmat(A * curr_state.segment(ORI, 4));
+
+            // increment imu_world_vel.
+            Eigen::Vector3d T_ab = curr_state.segment(BAT, 3).asDiagonal() * xa - curr_state.segment(BAA, 3);
+            vel += (R.transpose() * T_ab + curr_state.segment(GRAV, 3)) * dt;
+
+            // increment imu_world_rot.
+            prev_quat = rot;
+            rot = A * rot;
+
+            // BGA BAA mean reversion
+            if (params->acc_process_noise_rev > 0.0)
+                acc_bias *= curr_state.segment(BAA, 3) * exp(-dt * params->acc_process_noise_rev);
+
+            if (params->gyro_process_noise > 0.0)
+                gyro_bias *= gyro_bias.segment(BGA, 3) * exp(-dt * params->gyro_process_noise);
+        }
+
+        void predict(const Eigen::Vector3d &xg, const Eigen::Vector3d &xa, double dt, bool predict_state, bool prop_cov)
+        {
+            if (predict_state)
+                increment(dt, xg, xa);
+
+            if (prop_cov)
+            {
+                noise_covariance_increment(dt);
+                dydx_dydq(xg, xa, dt);
+                P = dydx * P * dydx.transpose() + dydq * Q * dydq.transpose();
+            }
+        }
     };
 
     struct StateOutput : public BaseState
     {
-        StateOutput()
+        explicit StateOutput()
             : BaseState(),
               imu_acc(Eigen::Vector3d::Zero()),
               imu_gyro(Eigen::Vector3d::Zero())
         {
             dydx = Eigen::MatrixXd::Zero(INNER_DIM, INNER_DIM);
             dydq = Eigen::MatrixXd::Zero(INNER_DIM, Q_DIM);
+            P = Eigen::MatrixXd::Zero(INNER_DIM, INNER_DIM);
+        }
+
+        explicit StateOutput(PARAMETERS::Ptr &parameters)
+            : BaseState(parameters),
+              imu_acc(Eigen::Vector3d::Zero()),
+              imu_gyro(Eigen::Vector3d::Zero())
+        {
+            dydx = Eigen::MatrixXd::Zero(INNER_DIM, INNER_DIM);
+            dydq = Eigen::MatrixXd::Zero(INNER_DIM, Q_DIM);
+            P = Eigen::MatrixXd::Zero(INNER_DIM, INNER_DIM);
+
+            // initialize state convariance
+            initialize_state_covariance();
+            P.block(IMU_ACC, IMU_ACC, 3, 3) *= utils::square(params->init_bga_noise);
+            P.block(IMU_GYRO, IMU_GYRO, 3, 3) *= utils::square(params->init_baa_noise);
+        }
+
+        // constructor definitions
+        StateOutput(const StateOutput &b)
+        {
+            this->pos = b.pos;
+            this->vel = b.vel;
+            this->rot = b.rot;
+            this->gyro_bias = b.gyro_bias;
+            this->acc_bias = b.acc_bias;
+            this->mult_bias = b.mult_bias;
+            this->grav = b.grav;
+            this->offset_T_L_I = b.offset_T_L_I;
+            this->offset_R_L_I = b.offset_R_L_I;
+            this->dydx = b.dydx;
+            this->dydq = b.dydq;
+            this->Q = b.Q;
+            this->P = b.P;
+            this->imu_acc = b.imu_acc;
+            this->imu_gyro = b.imu_gyro;
+
+            this->prev_quat = b.prev_quat;
+        }
+
+        StateOutput &operator=(const StateOutput &b)
+        {
+            this->pos = b.pos;
+            this->vel = b.vel;
+            this->rot = b.rot;
+            this->gyro_bias = b.gyro_bias;
+            this->acc_bias = b.acc_bias;
+            this->mult_bias = b.mult_bias;
+            this->grav = b.grav;
+            this->offset_T_L_I = b.offset_T_L_I;
+            this->offset_R_L_I = b.offset_R_L_I;
+            this->dydx = b.dydx;
+            this->dydq = b.dydq;
+            this->Q = b.Q;
+            this->P = b.P;
+            this->prev_quat = b.prev_quat;
+            this->imu_acc = b.imu_acc;
+            this->imu_gyro = b.imu_gyro;
+            return *this;
+        }
+
+        StateOutput operator+(const Eigen::Matrix<double, INNER_DIM, 1> &m)
+        {
+            StateOutput a;
+            a.pos = this->pos + m.segment(POS, 3);
+            a.vel = this->vel + m.segment(VEL, 3);
+
+            Eigen::Vector4d ori_val = m.segment(ORI, 4);
+            a.rot = increment_q(this->rot, ori_val);
+
+            a.gyro_bias = this->gyro_bias + m.segment(BGA, 3);
+            a.acc_bias = this->acc_bias + m.segment(BAA, 3);
+            a.mult_bias = m.segment(BAT, 3);
+            a.grav = this->grav + m.segment(GRAV, 3);
+            a.offset_T_L_I = this->offset_T_L_I + m.segment(POS_LIDAR_IMU, 3);
+
+            ori_val = m.segment(ORI_LIDAR_IMU, 4);
+            a.offset_R_L_I = decrement_q(this->offset_R_L_I, ori_val);
+
+            a.imu_acc = this->imu_acc + m.segment(IMU_ACC, 3);
+            a.imu_gyro = this->imu_gyro + m.segment(IMU_GYRO, 3);
+
+            a.dydx = this->dydx;
+            a.dydq = this->dydq;
+            a.Q = this->Q;
+            a.P = this->P;
+            a.prev_quat = this->prev_quat;
+
+            return a;
+        }
+
+        StateOutput &operator+=(const Eigen::Matrix<double, INNER_DIM, 1> &m)
+        {
+            this->pos += m.segment(POS, 3);
+            this->vel += m.segment(VEL, 3);
+
+            Eigen::Vector4d ori_val = m.segment(ORI, 4);
+            this->rot = increment_q(this->rot, ori_val);
+
+            this->gyro_bias += m.segment(BGA, 3);
+            this->acc_bias += m.segment(BAA, 3);
+            this->mult_bias = m.segment(BAT, 3);
+            this->grav += m.segment(GRAV, 3);
+            this->offset_T_L_I += m.segment(POS_LIDAR_IMU, 3);
+
+            ori_val = m.segment(ORI_LIDAR_IMU, 4);
+            this->offset_R_L_I = decrement_q(this->offset_R_L_I, ori_val);
+
+            this->imu_acc += m.segment(IMU_ACC, 3);
+            this->imu_gyro += m.segment(IMU_GYRO, 3);
+
+            return *this;
         }
 
         Eigen::Matrix<double, INNER_DIM, 1> get_f(const Eigen::Vector3d &xg, const Eigen::Vector3d &xa)
@@ -286,23 +687,7 @@ namespace odometry
             // derivative of quaternion wrt self
             dydx.block(ORI, ORI, 4, 4) = A;
 
-            // derivatives of velocity wrt acceleration noise
-            dydq.block(VEL, Q_ACC, 3, 3) = R.transpose() * dt;
-
-            // quaternion derivatices w.r.t gyroscope noise
-            Eigen::Matrix4d dS0, dS1, dS2;
-            (dS0 << 0, dt / 2, 0, 0, -dt / 2, 0, 0, 0, 0, 0, 0, dt / 2, 0, 0, -dt / 2, 0).finished();
-            (dS1 << 0, 0, dt / 2, 0, 0, 0, 0, -dt / 2, -dt / 2, 0, 0, 0, 0, dt / 2, 0, 0).finished();
-            (dS2 << 0, 0, 0, dt / 2, 0, 0, dt / 2, 0, 0, -dt / 2, 0, 0, -dt / 2, 0, 0, 0).finished();
-            dydq.block(ORI, Q_GYRO, 4, 1) = A * dS0 * prev_quat;
-            dydq.block(ORI, Q_GYRO + 1, 4, 1) = A * dS1 * prev_quat;
-            dydq.block(ORI, Q_GYRO + 2, 4, 1) = A * dS2 * prev_quat;
-            dydq.block(BGA, Q_BGA_DRIFT, 3, 3).setIdentity(3, 3);
-            dydq.block(BAA, Q_BAA_DRIFT, 3, 3).setIdentity(3, 3);
-
-            // velocity and orientation wrt sensors
-            dydq.block(VEL, Q_GYRO, 3, 3) = dydx.block(VEL, ORI, 3, 4) * dydq.block(ORI, Q_GYRO, 4, 3);
-
+            dydq_setup(dydx, R, A, dt);
             // derivative of velocity w.r.t predicted acc
             dydx.block(VEL, IMU_ACC, 3, 3) = R.transpose() * dt;
 
@@ -318,6 +703,50 @@ namespace odometry
                 rot_mat = utils::quat2rmat(quat);
             }
             dydx.block(ORI, IMU_GYRO, 3, 3) = rot_mat * utils::quat2rmat(prev_quat);
+        }
+
+        void increment(double dt, const Eigen::Vector3d &xg, const Eigen::Vector3d &xa)
+        {
+            const Eigen::Matrix<double, INNER_DIM, 1> curr_state = get_f(xg, xa);
+
+            // increment imu_world_pos.
+            pos += curr_state.segment(VEL, 3) * dt;
+
+            // increment xg.
+            Eigen::Matrix4d A = quat_4x4_rot(xg, -dt, false);
+            Eigen::Matrix3d R = utils::quat2rmat(A * curr_state.segment(ORI, 4));
+
+            // increment imu_world_vel.
+            Eigen::Vector3d T_ab = curr_state.segment(BAT, 3).asDiagonal() * xa - curr_state.segment(BAA, 3);
+            vel += (R.transpose() * T_ab + curr_state.segment(GRAV, 3)) * dt;
+
+            // increment imu_world_rot.
+            prev_quat = rot;
+            rot = A * rot;
+
+            // BGA BAA mean reversion
+            if (params->acc_process_noise_rev > 0.0)
+                acc_bias *= curr_state.segment(BAA, 3) * exp(-dt * params->acc_process_noise_rev);
+
+            if (params->gyro_process_noise > 0.0)
+                gyro_bias *= curr_state.segment(BGA, 3) * exp(-dt * params->gyro_process_noise);
+
+            // increase imu prediction by the bias
+            imu_acc += curr_state.segment(BAA, 3) * dt;
+            imu_gyro += gyro_bias.segment(BGA, 3) * dt;
+        }
+
+        void predict(const Eigen::Vector3d &xg, const Eigen::Vector3d &xa, double dt, bool predict_state, bool prop_cov)
+        {
+            if (predict_state)
+                increment(dt, xg, xa);
+
+            if (prop_cov)
+            {
+                noise_covariance_increment(dt);
+                dydx_dydq(xg, xa, dt);
+                P = dydx * P * dydx.transpose() + dydq * Q * dydq.transpose();
+            }
         }
 
         Eigen::Vector3d imu_acc;  // estimated imu acceleration

@@ -8,7 +8,6 @@
 #include "limu/sensors/lidar/frame.hpp"
 #include "limu/sensors/sync_frame.hpp"
 #include "limu/sensors/imu/frame.hpp"
-#include "limu/sensors/lidar/icp.hpp"
 #include "limu/kalman/ekf.hpp"
 #include "sensor_msgs/PointCloud2.h"
 #include "sensor_msgs/Imu.h"
@@ -38,7 +37,6 @@ public:
           imu_ptr(std::make_shared<frame::Imu>(nh)),
           tracker(Trackers())
     {
-        icp_ptr = std::make_shared<lidar::KissICP>(lidar_ptr->config);
         // subscribing to lidar and imu topics.
         std::string lidar_topic, imu_topic;
         nh.param<std::string>("lidar_topic", lidar_topic, "/rslidar_points");
@@ -93,7 +91,6 @@ private:
     // void kalman_filter_process(frame::LidarImuInit::Ptr &meas);
 
     // attributes
-    lidar::KissICP::Ptr icp_ptr;
     frame::Lidar::Ptr lidar_ptr;
     frame::Imu::Ptr imu_ptr;
     // kalman::EKF::Ptr ekf;

@@ -1,5 +1,5 @@
-#ifndef HELPER_HPP
-#define HELPER_HPP
+#ifndef EKF_HELPER_HPP
+#define EKF_HELPER_HPP
 
 #include "common.hpp"
 #include <unordered_map>
@@ -38,6 +38,58 @@ namespace utils
         Eigen::AngleAxisd aa(dt * ang_vel.norm(), ang_vel.normalized());
 
         return aa.toRotationMatrix();
+    }
+
+    inline Eigen::Vector3d quat_mult_point(const Eigen::Vector4d &quat_v, const Eigen::Vector3d &p)
+    {
+        Eigen::Quaterniond q(quat_v);
+        Eigen::Quaterniond q_inv = q.conjugate();
+        Eigen::Quaterniond p_quat(0, p(0), p(1), p(2));
+        Eigen::Quaterniond p_rotated = q * p_quat * q_inv;
+        return p_rotated.vec();
+    }
+
+    inline Eigen::Vector4d quat_mult_point_q(const Eigen::Vector4d &quat_v, const Eigen::Vector3d &p)
+    {
+        Eigen::Quaterniond q(quat_v);
+        Eigen::Quaterniond q_inv = q.conjugate();
+        Eigen::Quaterniond p_quat(0, p(0), p(1), p(2));
+        Eigen::Quaterniond p_rotated = q * p_quat * q_inv;
+        return Eigen::Vector4d(p_rotated.w(), p_rotated.x(), p_rotated.y(), p_rotated.z());
+    }
+
+    inline Eigen::Quaterniond quat_mult_norm(const Eigen::Quaterniond &q1, const Eigen::Quaterniond &q2)
+    {
+        Eigen::Quaterniond q = q1 * q2;
+        q.normalize();
+        return q;
+    }
+
+    inline Eigen::Quaterniond quat_mult_norm(const Eigen::Vector4d &v1, const Eigen::Vector4d &v2)
+    {
+        Eigen::Quaterniond q1(v1);
+        Eigen::Quaterniond q2(v2);
+
+        return quat_mult_norm(q1, q2);
+    }
+
+    inline Eigen::Matrix4d ohm(const Eigen::Vector3d &vec)
+    {
+        Eigen::Matrix4d S;
+        (S << 0, -vec[0], -vec[1], -vec[2],
+         vec[0], 0, -vec[2], vec[1],
+         vec[1], vec[2], 0, -vec[0],
+         vec[2], -vec[1], vec[0], 0)
+            .finished();
+
+        return S;
+    }
+
+    inline Eigen::Vector4d ohm_to_vec(const Eigen::Matrix4d &mat)
+    {
+        Eigen::Vector4d _vec(0, mat(1, 0), mat(2, 0), mat(3, 0));
+
+        return _vec;
     }
 
 }

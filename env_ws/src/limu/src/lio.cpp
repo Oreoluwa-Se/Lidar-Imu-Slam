@@ -116,31 +116,31 @@ bool LIO::imu_process(frame::LidarImuInit::Ptr &meas)
 
 void LIO::estimate_lidar_odometry(frame::LidarImuInit::Ptr &meas)
 {
-    // estimate lidar LIO - deskewed, keypoints, pose
-    const auto icp_output = icp_ptr->register_frame(*(meas->processed_frame), {});
-    const auto &deskewed = std::get<0>(icp_output);
-    const auto &key_points = std::get<1>(icp_output);
-    const auto &pose = std::get<2>(icp_output);
+    // // estimate lidar LIO - deskewed, keypoints, pose
+    // const auto icp_output = icp_ptr->register_frame(*(meas->processed_frame), {});
+    // const auto &deskewed = std::get<0>(icp_output);
+    // const auto &key_points = std::get<1>(icp_output);
+    // const auto &pose = std::get<2>(icp_output);
 
-    const utils::Vec3d translation = pose.translation();
-    const Eigen::Quaterniond quat = pose.unit_quaternion();
+    // const utils::Vec3d translation = pose.translation();
+    // const Eigen::Quaterniond quat = pose.unit_quaternion();
 
-    const auto curr_time = ros::Time::now();
-    // broadcast current pose estimate
-    lidar_ptr->set_current_pose_nav(translation, quat, curr_time, odom_frame, child_frame);
-    tf_broadcaster.sendTransform(lidar_ptr->current_pose);
-    odom_publisher.publish(lidar_ptr->odom_msg);
+    // const auto curr_time = ros::Time::now();
+    // // broadcast current pose estimate
+    // lidar_ptr->set_current_pose_nav(translation, quat, curr_time, odom_frame, child_frame);
+    // tf_broadcaster.sendTransform(lidar_ptr->current_pose);
+    // odom_publisher.publish(lidar_ptr->odom_msg);
 
-    // path
-    geometry_msgs::PoseStamped pose_msg;
-    pose_msg.pose = lidar_ptr->odom_msg.pose.pose;
-    pose_msg.header = lidar_ptr->odom_msg.header;
-    path_msgs.poses.push_back(pose_msg);
-    traj_publisher.publish(path_msgs);
+    // // path
+    // geometry_msgs::PoseStamped pose_msg;
+    // pose_msg.pose = lidar_ptr->odom_msg.pose.pose;
+    // pose_msg.header = lidar_ptr->odom_msg.header;
+    // path_msgs.poses.push_back(pose_msg);
+    // traj_publisher.publish(path_msgs);
 
-    // For debugging purposes
-    publish_point_cloud(frame_publisher, curr_time, child_frame, deskewed);
-    publish_point_cloud(kpoints_publisher, curr_time, child_frame, key_points);
+    // // For debugging purposes
+    // publish_point_cloud(frame_publisher, curr_time, child_frame, deskewed);
+    // publish_point_cloud(kpoints_publisher, curr_time, child_frame, key_points);
 }
 
 bool LIO::sync_packages(frame::LidarImuInit::Ptr &meas)

@@ -56,13 +56,17 @@ namespace lidar
         utils::Vec3dVector local_map_() const { return local_map.pointcloud(); }
         std::vector<SE3d> poses_() const { return poses; }
 
-    private:
-        std::shared_ptr<std::mutex> data_mutex;
+    public:
+        // would mostlikely make a pointer... but that'll be a later issue
+        VoxelHashMap local_map;
         frame::Lidar::ProcessingInfo config;
+        
+    private:
+        std::shared_ptr<std::mutex> data_mutex;            
         AdaptiveThreshold adaptive_threshold;
         MotionCompensator compensator;
         std::vector<SE3d> poses;
-        VoxelHashMap local_map;
+
         double scan_duration;
     };
 }
