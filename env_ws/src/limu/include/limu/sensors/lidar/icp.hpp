@@ -48,6 +48,9 @@ namespace lidar
         // downsample pointcloud KISS-ICP Downsampling scheme.
         utils::Vec3_Vec3Tuple voxelize(const utils::Vec3dVector &frame);
 
+        double ICP_setup();
+        void update_map(utils::Vec3dVector &map_points, const SE3d &new_pose);
+
         SE3d get_prediction_model() const;
         double get_adaptive_threshold();
         utils::Vec3Tuple current_vel();
@@ -60,13 +63,13 @@ namespace lidar
         // would mostlikely make a pointer... but that'll be a later issue
         VoxelHashMap local_map;
         frame::Lidar::ProcessingInfo config;
-        
+        SE3d init_guess;
+
     private:
-        std::shared_ptr<std::mutex> data_mutex;            
+        std::shared_ptr<std::mutex> data_mutex;
         AdaptiveThreshold adaptive_threshold;
         MotionCompensator compensator;
         std::vector<SE3d> poses;
-
         double scan_duration;
     };
 }

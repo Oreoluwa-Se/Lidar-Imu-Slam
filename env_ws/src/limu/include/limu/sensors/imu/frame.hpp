@@ -92,6 +92,13 @@ namespace frame
             buffer.pop_front();
         }
 
+        void recycle()
+        {
+            imu_last = imu_next;
+            imu_next = *(buffer_front());
+            pop();
+        }
+
     public:
         int init_iter_num = 1;
         bool enabled, need_init;

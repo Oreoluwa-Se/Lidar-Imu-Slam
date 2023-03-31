@@ -61,26 +61,39 @@ namespace lidar
         auto &source = std::get<0>(processed_frame);
 
         // Get motion prediction and adaptive threshold
-        const double sigma = get_adaptive_threshold();
-
-        // compute initial ICP guess
-        const SE3d pred = get_prediction_model();
-        const auto last_pose = poses.empty() ? SE3d() : poses.back();
-        const auto init_guess = last_pose * pred;
+        const double sigma = ICP_setup();
 
         // Run Icp
         const SE3d new_pose = ICP(
             local_map, source, init_guess, 3.0 * sigma, sigma / 3.0,
             config.icp_max_iteration, config.estimation_threshold);
 
-        const auto model_dev = init_guess.inverse() * new_pose;
-        adaptive_threshold.update_model_deviation(model_dev);
-
-        local_map.update(down_sampled, new_pose);
-        poses.emplace_back(new_pose);
+        update_map(down_sampled, new_pose);
 
         // deskewed, keypoints, pose
         return {down_sampled, source, new_pose};
+    }
+
+    double KissICP::ICP_setup()
+    {
+        // Get motion prediction and adaptive threshold
+        const double sigma = get_adaptive_threshold();
+
+        // compute initial ICP guess
+        const SE3d pred = get_prediction_model();
+        const auto last_pose = poses.empty() ? SE3d() : poses.back();
+        init_guess = last_pose * pred;
+
+        return sigma;
+    }
+
+    void KissICP::update_map(utils::Vec3dVector &map_points, const SE3d &new_pose)
+    {
+        const auto model_dev = init_guess.inverse() * new_pose;
+        adaptive_threshold.update_model_deviation(model_dev);
+
+        local_map.update(map_points, new_pose);
+        poses.emplace_back(new_pose);
     }
 
     utils::Vec3_Vec3Tuple KissICP::voxelize(const utils::Vec3dVector &frame)

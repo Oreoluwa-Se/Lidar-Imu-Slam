@@ -37,42 +37,6 @@ namespace frame
     {
         double message_time_ms = message_time * 1000; // convert to ms
         double last_frame_end_time = message_time_ms;
-        // std::deque<std::map<double, double>> time_acctime_map_queue;
-        // std::map<double, double> time_acctime_map;
-        // std::vector<double> curvature_key_per_segment;
-        // std::deque<PointCloud::Ptr> buffer;
-
-        // for (const auto &point : surface_cloud->points)
-        // {
-        //     if (curvature_key_per_segment.empty() || point.curvature != curvature_key_per_segment.back())
-        //     {
-        //         curvature_key_per_segment.push_back(point.curvature);
-        //         buffer.emplace_back(new PointCloud());
-        //     }
-        // }
-
-        // // split vectors
-        // for (const auto &point : surface_cloud->points)
-        // {
-        //     auto loc = std::find(curvature_key_per_segment.begin(), curvature_key_per_segment.end(), point.curvature) - curvature_key_per_segment.begin();
-        //     buffer[loc]->points.push_back(point);
-        // }
-
-        // // create map to link curvature to accumulated segment time.
-        // for (auto &key : curvature_key_per_segment)
-        // {
-        //     time_acctime_map[key] = key + message_time_ms - last_frame_end_time;
-        //     last_frame_end_time += time_acctime_map[key];
-        // }
-
-        // segment_count.push_back(static_cast<int>(curvature_key_per_segment.size()));
-        // time_acctime_map_queue.push_back(time_acctime_map);
-
-        // for (const auto &buff : buffer)
-        // {
-        //     // accumulated segment time and pointcloud assosciated.
-        //     split_buffer.emplace_back(time_acctime_map[buff->points[0].curvature], std::move(buff));
-        // }
 
         std::vector<std::unordered_map<double, double>> time_acctime_maps;
         std::vector<double> curvature_keys;

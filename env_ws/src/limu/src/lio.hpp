@@ -13,6 +13,7 @@
 #include "sensor_msgs/Imu.h"
 #include "nav_msgs/Path.h"
 #include <ros/ros.h>
+#include "common.hpp"
 
 class LIO
 {
@@ -25,11 +26,11 @@ public:
               timediff_set_flag(false), data_accum_finished(false),
               data_accum_start(false), exit_flag(false), lidar_pushed(false),
               reset_flag(false), init_map(false), flag_first_scan(true),
-              flag_reset(false) {}
+              flag_reset(false), first_frame(true) {}
 
         double time_diff_imu_wrt_lidar, time_lag_IMU_wtr_lidar, lidar_end_time, move_start_time, first_lidar_time;
         bool timediff_set_flag, data_accum_finished, data_accum_start, exit_flag, lidar_pushed, reset_flag;
-        bool init_map, flag_first_scan, flag_reset;
+        bool init_map, flag_first_scan, flag_reset, first_frame;
     };
 
     explicit LIO(ros::NodeHandle &nh)
@@ -45,7 +46,7 @@ public:
         imu_sub = nh.subscribe(imu_topic, queue_size, &LIO::imu_callback, this);
 
         // initialize kalman filter;
-        // setup_ekf(nh);
+        setup_ekf(nh);
 
         // initialize publishers
         initialize_publishers(nh);
@@ -82,20 +83,19 @@ private:
     bool lidar_process(frame::LidarImuInit::Ptr &meas);
     bool imu_process(frame::LidarImuInit::Ptr &meas);
     bool sync_packages(frame::LidarImuInit::Ptr &meas);
-    // void setup_ekf(ros::NodeHandle &nh);
-    void estimate_lidar_odometry(frame::LidarImuInit::Ptr &meas);
-    void publish_point_cloud(ros::Publisher &pub, const ros::Time &time,
-                             const std::string &frame_id,
-                             const utils::Vec3dVector &points);
-
-    // void kalman_filter_process(frame::LidarImuInit::Ptr &meas);
+    void setup_ekf(ros::NodeHandle &nh);
+    void publish_point_cloud(
+        ros::Publisher &pub, const ros::Time &time,
+        const std::string &frame_id,
+        const utils::Vec3dVector &points);
+    void publish_init_map(const utils::Vec3dVector &map_points);
 
     // attributes
     frame::Lidar::Ptr lidar_ptr;
     frame::Imu::Ptr imu_ptr;
-    // kalman::EKF::Ptr ekf;
+    odometry::EKF::Ptr ekf;
     Trackers tracker;
-
+    odometry::dyn_share_modified<double> data;
     // broadcasting
     tf2_ros::TransformBroadcaster tf_broadcaster;
 
@@ -112,6 +112,14 @@ private:
     // message for publishing path
     nav_msgs::Path path_msgs;
 
+    double current_time = 0.0;
+    double time_update_last = 0.0;
+    double time_predict_last_const = 0.0;
+    double propagate_time = 0.0;
+    double solve_time = 0.0;
+    double update_time = 0.0;
+
+    // place holders:
     std::string child_frame;
     std::string odom_frame;
     std::mutex data_mutex;

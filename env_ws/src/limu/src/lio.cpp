@@ -1,4 +1,20 @@
 #include "lio.hpp"
+#include <chrono>
+#include <functional>
+namespace
+{
+    using hr_clock = std::chrono::high_resolution_clock;
+
+    template <typename Func, typename... Args>
+    double duration_meas(Func func, Args &&...args)
+    {
+        auto start_time = hr_clock::now();
+        func(std::forward<Args>(args)...);
+        auto end_time = hr_clock::now();
+
+        return std::chrono::duration<double>(end_time - start_time).count();
+    }
+}
 
 void LIO::initialize_publishers(ros::NodeHandle &nh)
 {
@@ -13,29 +29,31 @@ void LIO::initialize_publishers(ros::NodeHandle &nh)
     traj_publisher = nh.advertise<nav_msgs::Path>("trajectory", queue_size);
 }
 
-// void LIO::setup_ekf(ros::NodeHandle &nh)
-// {
-//     kalman::EKF_PARAMETERS::Ptr p(new kalman::EKF_PARAMETERS);
-//     nh.param<int>("lidar_pose_trail", p->lidar_pose_trail, 20);
-//     nh.param<double>("noise_scale", p->noise_scale, 100);
-//     nh.param<double>("init_pos_noise", p->init_pos_noise, 1e-5);
-//     nh.param<double>("init_vel_noise", p->init_vel_noise, 0.1);
-//     nh.param<double>("init_bga_noise", p->init_bga_noise, 1e-3);
-//     nh.param<double>("init_baa_noise", p->init_baa_noise, 1e-6);
-//     nh.param<double>("init_bat_noise", p->init_bat_noise, 1e-5);
-//     // standard deviation from spec sheet
-//     nh.param<double>("acc_process_noise", p->acc_process_noise, 0.03);
-//     nh.param<double>("gyro_process_noise", p->gyro_process_noise, 0.00017);
-//     nh.param<double>("acc_process_noise_rev", p->acc_process_noise_rev, 0.1);
-//     nh.param<double>("gyro_process_noise_rev", p->gyro_process_noise_rev, 0.1);
-//     nh.param<double>("init_pos_trail_noise", p->init_pos_trail_noise, 100);
-//     nh.param<double>("init_ori_trail_noise", p->init_ori_trail_noise, 3.1622776);
-//     nh.param<double>("init_lidar_imu_time_noise", p->init_lidar_imu_time_noise, 1e-5);
+void LIO::setup_ekf(ros::NodeHandle &nh)
+{
+    odometry::PARAMETERS::Ptr p(new odometry::PARAMETERS);
+    nh.param<double>("noise_scale", p->noise_scale, 100);
+    nh.param<double>("init_pos_noise", p->init_pos_noise, 1e-5);
+    nh.param<double>("init_vel_noise", p->init_vel_noise, 0.1);
+    nh.param<double>("init_bga_noise", p->init_bga_noise, 1e-3);
+    nh.param<double>("init_baa_noise", p->init_baa_noise, 1e-6);
+    nh.param<double>("init_bat_noise", p->init_bat_noise, 1e-5);
+    // standard deviation from spec sheet
+    nh.param<double>("acc_process_noise", p->acc_process_noise, 0.03);
+    nh.param<double>("gyro_process_noise", p->gyro_process_noise, 0.00017);
+    nh.param<double>("acc_process_noise_rev", p->acc_process_noise_rev, 0.1);
+    nh.param<double>("gyro_process_noise_rev", p->gyro_process_noise_rev, 0.1);
 
-//     nh.param<double>("init_ori_noise", p->init_bga_noise, 0.01 * p->init_ori_trail_noise);
+    double init_ori_trail_noise;
+    nh.param<double>("init_ori_trail_noise", init_ori_trail_noise, 3.1622776);
+    nh.param<double>("init_ori_noise", p->init_bga_noise, 0.01 * init_ori_trail_noise);
 
-//     ekf = std::make_unique<kalman::EKF>(p);
-// }
+    // from imu spec sheet
+    nh.param<double>("satu_gyro", p->satu_gyro, 35.0);
+    nh.param<double>("satu_acc", p->satu_acc, 3.0);
+
+    ekf = std::make_unique<odometry::EKF>(lidar_ptr->config, p);
+}
 
 void LIO::imu_callback(const sensor_msgs::Imu::ConstPtr &msg)
 {
@@ -114,35 +132,6 @@ bool LIO::imu_process(frame::LidarImuInit::Ptr &meas)
     return true;
 }
 
-void LIO::estimate_lidar_odometry(frame::LidarImuInit::Ptr &meas)
-{
-    // // estimate lidar LIO - deskewed, keypoints, pose
-    // const auto icp_output = icp_ptr->register_frame(*(meas->processed_frame), {});
-    // const auto &deskewed = std::get<0>(icp_output);
-    // const auto &key_points = std::get<1>(icp_output);
-    // const auto &pose = std::get<2>(icp_output);
-
-    // const utils::Vec3d translation = pose.translation();
-    // const Eigen::Quaterniond quat = pose.unit_quaternion();
-
-    // const auto curr_time = ros::Time::now();
-    // // broadcast current pose estimate
-    // lidar_ptr->set_current_pose_nav(translation, quat, curr_time, odom_frame, child_frame);
-    // tf_broadcaster.sendTransform(lidar_ptr->current_pose);
-    // odom_publisher.publish(lidar_ptr->odom_msg);
-
-    // // path
-    // geometry_msgs::PoseStamped pose_msg;
-    // pose_msg.pose = lidar_ptr->odom_msg.pose.pose;
-    // pose_msg.header = lidar_ptr->odom_msg.header;
-    // path_msgs.poses.push_back(pose_msg);
-    // traj_publisher.publish(path_msgs);
-
-    // // For debugging purposes
-    // publish_point_cloud(frame_publisher, curr_time, child_frame, deskewed);
-    // publish_point_cloud(kpoints_publisher, curr_time, child_frame, key_points);
-}
-
 bool LIO::sync_packages(frame::LidarImuInit::Ptr &meas)
 {
     // using lidar information only
@@ -173,6 +162,10 @@ bool LIO::sync_packages(frame::LidarImuInit::Ptr &meas)
     return true;
 }
 
+void LIO::publish_init_map(const utils::Vec3dVector &map_points)
+{
+    return;
+}
 void LIO::run()
 {
     ros::Rate rate(5000);
@@ -202,12 +195,199 @@ void LIO::run()
             ROS_WARN("[WARN] Resetting robag playback.");
             imu_ptr->reset();
             tracker.flag_reset = false;
+            meas.reset();
             continue;
         }
 
-        // Process the Imu stuff
-        // imu_ptr->process(meas);
-        // reset measurement
+        if (!ekf->map_def())
+        {
+            ekf->h_model_input(data, meas);
+            ROS_INFO("[INFO] ........ Map Initialized ........");
+
+            if (imu_ptr->enabled)
+            {
+                while (meas->lidar_beg_time < imu_ptr->imu_next.header.stamp.toSec())
+                    imu_ptr->recycle();
+            }
+            else
+            {
+                (ekf->inp_state.grav << 0.0, 0.0, -gravity).finished();
+                (ekf->out_state.grav << 0.0, 0.0, -gravity).finished();
+                (ekf->out_state.imu_acc << 0.0, 0.0, gravity).finished();
+            }
+
+            // publish_init_map(ekf->icp_ptr->local_map_());
+            meas.reset();
+            continue;
+        }
+
+        bool enabled = imu_ptr->enabled;
+
+        /** Data accumulation begins here **/
+        if (!enabled && !tracker.data_accum_start && ekf->get_lidar_pos().norm() > 0.05)
+        {
+            ROS_INFO("[INFO] Data Accumulation for Robot Initialization Begins.");
+            tracker.data_accum_start = true;
+            tracker.move_start_time = lidar_ptr->lidar_end_time;
+        }
+
+        /*** L_I initialization ***/
+        if (!enabled && !tracker.data_accum_finished && tracker.data_accum_start)
+        {
+            continue;
+        }
+
+        // const auto &point = meas->processed_frame->points[0];
+        // current_time = point.curvature / 1000.0 + meas->lidar_beg_time;
+        // if (!ekf->use_imu_as_input)
+        // {
+
+        //     bool propagated = false;
+
+        //     if (tracker.first_frame)
+        //     {
+        //         if (enabled)
+        //         {
+        //             // align imu reading with current lidar measurement
+        //             while (current_time > imu_ptr->imu_next.header.stamp.toSec())
+        //                 imu_ptr->recycle();
+        //         }
+
+        //         tracker.first_frame = false;
+        //         time_update_last = current_time;
+        //         time_predict_last_const = current_time;
+        //     }
+
+        //     if (enabled)
+        //     {
+        //         while (current_time > imu_ptr->imu_next.header.stamp.toSec())
+        //         {
+        //             const auto &imu_next = imu_ptr->imu_next;
+        //             ekf->update_imu_reading(imu_next.angular_velocity, imu_next.linear_acceleration);
+
+        //             // update the covariance
+        //             imu_ptr->recycle();
+
+        //             double dt = imu_ptr->imu_next.header.stamp.toSec() - time_predict_last_const;
+        //             ekf->out_state.predict(ekf->zero, ekf->zero, dt, true, false);
+        //             time_predict_last_const = imu_ptr->imu_last.header.stamp.toSec();
+
+        //             // covariance propagation
+        //             double dt_cov = time_predict_last_const - time_update_last;
+        //             if (dt_cov > 0.0)
+        //             {
+        //                 propagated = true;
+        //                 time_update_last = time_predict_last_const;
+        //                 double pg_time = duration_meas(
+        //                     [&]()
+        //                     {
+        //                         ekf->out_state.predict(ekf->zero, ekf->zero, dt_cov, false, true);
+        //                     });
+        //                 propagate_time += pg_time;
+
+        //                 // update model based on imu readings
+        //                 double s_time = duration_meas(
+        //                     [&]()
+        //                     {
+        //                         ekf->update_h_model_IMU_output(meas);
+        //                     });
+        //                 solve_time += s_time;
+        //             }
+        //         }
+        //     }
+
+        //     double dt = current_time - time_predict_last_const;
+        //     if (!propagated)
+        //     {
+        //         double dt_cov = time_predict_last_const - time_update_last;
+        //         if (dt_cov > 0.0)
+        //         {
+        //             time_update_last = time_predict_last_const;
+        //             double pg_time = duration_meas(
+        //                 [&]()
+        //                 {
+        //                     ekf->out_state.predict(ekf->zero, ekf->zero, dt_cov, false, true);
+        //                 });
+        //             propagate_time += pg_time;
+        //         }
+        //     }
+
+        //     ekf->out_state.predict(ekf->zero, ekf->zero, dt, true, false);
+
+        //     if (!ekf->update_h_model_output(meas))
+        //     {
+        //         meas.reset();
+        //         continue;
+        //     }
+        // }
+        // else
+        // {
+        //     if (tracker.first_frame)
+        //     {
+        //         while (current_time > imu_ptr->imu_next.header.stamp.toSec())
+        //             imu_ptr->recycle();
+
+        //         tracker.first_frame = false;
+        //         time_update_last = current_time;
+        //         time_predict_last_const = current_time;
+        //     }
+
+        //     bool propagated = false;
+        //     while (current_time > imu_ptr->imu_next.header.stamp.toSec())
+        //     {
+        //         const auto &imu_last = imu_ptr->imu_last;
+        //         double sf = gravity / meas->get_mean_acc_norm();
+        //         ekf->update_imu_reading(imu_last.angular_velocity, imu_last.linear_acceleration, sf);
+
+        //         // scale with graivty
+        //         double dt = imu_last.header.stamp.toSec() - time_predict_last_const;
+        //         double dt_cov = time_predict_last_const - time_update_last;
+        //         if (dt_cov > 0.0)
+        //         {
+        //             propagated = true;
+        //             double pg_time = duration_meas(
+        //                 [&]()
+        //                 {
+        //                     ekf->inp_state.predict(ekf->ang_vel_read, ekf->acc_vel_read, dt_cov, false, true);
+        //                 });
+        //             propagate_time += pg_time;
+        //         }
+
+        //         ekf->inp_state.predict(ekf->ang_vel_read, ekf->acc_vel_read, dt, true, false);
+        //         time_update_last = time_predict_last_const;
+        //     }
+
+        //     double dt = current_time - time_predict_last_const;
+        //     if (!propagated)
+        //     {
+        //         double dt_cov = current_time - time_update_last;
+        //         if (dt_cov > 0.0)
+        //         {
+        //             time_update_last = time_predict_last_const;
+        //             double pg_time = duration_meas(
+        //                 [&]()
+        //                 {
+        //                     ekf->inp_state.predict(ekf->ang_vel_read, ekf->acc_vel_read, dt_cov, false, true);
+        //                 });
+        //             propagate_time += pg_time;
+        //         }
+        //     }
+        //     ekf->inp_state.predict(ekf->ang_vel_read, ekf->acc_vel_read, dt, true, false);
+
+        //     if (!ekf->update_h_model_input(meas))
+        //     {
+        //         meas.reset();
+        //         continue;
+        //     }
+        // }
+
+        // // update the map -> contains position and translation information
+        // auto start_time = hr_clock::now();
+        // const auto tup_val = ekf->update_map();
+        // auto end_time = hr_clock::now();
+        // update_time += std::chrono::duration<double>(end_time - start_time).count();
+
+        // PUBLISHING ODOMETRY TO BE DONE HERE
         meas.reset();
     }
 }

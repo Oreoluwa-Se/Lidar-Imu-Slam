@@ -19,6 +19,12 @@ namespace utils
         return R;
     }
 
+    inline Eigen::Quaterniond rmat2quat(const Eigen::Matrix3d &mat)
+    {
+        Eigen::Quaterniond quat(mat);
+        quat.normalize();
+        return quat;
+    }
     inline Eigen::Matrix3d extract_rot_dr(const Eigen::Vector4d &q, Eigen::Matrix3d (&dR)[4])
     {
         // use perturbation to calculate derivative
@@ -90,6 +96,32 @@ namespace utils
         Eigen::Vector4d _vec(0, mat(1, 0), mat(2, 0), mat(3, 0));
 
         return _vec;
+    }
+
+    inline Eigen::Vector3d quat_to_euler(const Eigen::Vector4d &v1)
+    {
+        Eigen::Quaterniond q(qvec.normalized());
+        Eigen::Vector3d euler;
+
+        double sinr_cosp = 2.0 * (q.w() * q.x() + q.y() * q.z());
+        double cosr_cosp = 1.0 - 2.0 * (q.x() * q.x() + q.y() * q.y());
+        euler(0) = std::atan2(sinr_cosp, cosr_cosp);
+
+        double sinp = 2.0 * (q.w() * q.y() - q.z() * q.x());
+        if (std::abs(sinp) >= 1.0)
+        {
+            euler(1) = std::copysign(M_PI / 2.0, sinp);
+        }
+        else
+        {
+            euler(1) = std::asin(sinp);
+        }
+
+        double siny_cosp = 2.0 * (q.w() * q.z() + q.x() * q.y());
+        double cosy_cosp = 1.0 - 2.0 * (q.y() * q.y() + q.z() * q.z());
+        euler(2) = std::atan2(siny_cosp, cosy_cosp);
+
+        return euler;
     }
 
 }

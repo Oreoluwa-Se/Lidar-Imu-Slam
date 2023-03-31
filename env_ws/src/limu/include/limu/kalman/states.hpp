@@ -60,7 +60,7 @@ namespace odometry
     constexpr int Q_BAA_DRIFT = 9;
     constexpr int Q_DIM = 12;
 
-    constexpr int h_matrix_col = 15;
+    constexpr int h_matrix_col = 14;
 
     struct Pose6D
     {
@@ -95,6 +95,10 @@ namespace odometry
         double gyro_process_noise;
         double acc_process_noise_rev;
         double gyro_process_noise_rev;
+
+        // stuff
+        double satu_acc;
+        double satu_gyro;
     };
 
     struct BaseState
@@ -210,6 +214,63 @@ namespace odometry
             Q *= params->noise_scale;
         }
 
+        void dydx_dydq_base(const Eigen::Vector3d &xg, const Eigen::Vector3d &xa, double dt, bool b_input = true)
+        {
+            dydx.setZero();
+            dydq.setZero();
+
+            dydx.block(POS, POS, 3, 3).setIdentity(3, 3);
+            dydx.block(VEL, VEL, 3, 3).setIdentity(3, 3);
+            dydx.block(POS, VEL, 3, 3).setIdentity(3, 3) *= dt;
+            dydx.block(BGA, BGA, 3, 3).setIdentity(3, 3);
+            dydx.block(BAA, BAA, 3, 3).setIdentity(3, 3);
+            dydx.block(BAT, BAT, 3, 3).setIdentity(3, 3);
+            dydx.block(GRAV, GRAV, 3, 3).setIdentity(3, 3);
+            dydx.block(POS, GRAV, 3, 3).setIdentity(3, 3) *= dt;
+            dydx.block(POS_LIDAR_IMU, POS_LIDAR_IMU, 3, 3).setIdentity(3, 3);
+            dydx.block(ORI_LIDAR_IMU, ORI_LIDAR_IMU, 4, 4).setIdentity(4, 4);
+
+            // -dt cause using global errors
+            Eigen::Matrix4d A = quat_4x4_rot(xg, -dt, b_input);
+            Eigen::Matrix3d dR[4];
+            Eigen::Matrix3d R = utils::extract_rot_dr(A * rot, dR);
+            Eigen::Vector3d T_ab = b_input ? mult_bias.asDiagonal() * xa - acc_bias : xa;
+
+            // derivatives of velocity w.r.t quaternion
+            for (int i = 0; i < 4; i++)
+                dydx.block(VEL, ORI + i, 3, 1) = dR[i].transpose() * T_ab * dt;
+
+            dydx.block(VEL, ORI, 3, 4) = dydx.block(VEL, ORI, 3, 4) * A;
+
+            // derivative of quaternion wrt self
+            dydx.block(ORI, ORI, 4, 4) = A;
+
+            dydq_setup(dydx, R, A, dt);
+
+            if (b_input)
+            {
+                // derivative of velocity w.r.t gyro bias
+                dydx.block(VEL, BGA, 3, 3) = -dydq.block(VEL, Q_GYRO, 3, 3);
+
+                // quaternion derivative wrt gyro bias
+                dydx.block(ORI, BGA, 4, 3) = -dydq.block(ORI, Q_GYRO, 4, 3);
+
+                // derivatives of the velocity w.r.t the acc. bias
+                dydx.block(VEL, BAA, 3, 3) = -R.transpose() * dt;
+
+                // derivatives of the velocity w.r.t the acc. transformation
+                dydx.block(VEL, BAT, 3, 3) = R.transpose() * xa.asDiagonal() * dt;
+            }
+            else
+            {
+                // derivative of velocity w.r.t predicted acc
+                dydx.block(VEL, IMU_ACC, 3, 3) = R.transpose() * dt;
+
+                // orientation derivative wrt predicted gyro
+                dydx.block(ORI, IMU_GYRO, 3, 3) = dt * utils::quat2rmat(prev_quat);
+            }
+        }
+
         void noise_covariance_increment(double dt)
         {
             // random walk bias for gyro
@@ -244,9 +305,8 @@ namespace odometry
              * note the offset_trans_lidar_imu to be put in quaternion form
              */
             Eigen::Matrix<double, Rows, h_matrix_col> props;
-            props.setZero();
             props.block(0, 0, Rows, 7) = P.block(0, 0, Rows, 7);
-            props.block(0, 8, Rows, 7) = P.block(0, POS_LIDAR_IMU, Rows, 7);
+            props.block(0, 7, Rows, 7) = P.block(0, POS_LIDAR_IMU, Rows, 7);
 
             return props;
         }
@@ -260,9 +320,8 @@ namespace odometry
              * note the offset_trans_lidar_imu to be put in quaternion form
              */
             Eigen::Matrix<double, h_matrix_col, Num_Measurements> props;
-            props.setZero();
             props.block(0, 0, 7, Num_Measurements) = PHT.block(0, 0, 7, Num_Measurements);
-            props.block(8, 0, 7, Num_Measurements) = PHT.block(POS_LIDAR_IMU, 0, 7, Num_Measurements);
+            props.block(7, 0, 7, Num_Measurements) = PHT.block(POS_LIDAR_IMU, 0, 7, Num_Measurements);
 
             return props;
         }
@@ -421,7 +480,7 @@ namespace odometry
             // velocity
             Eigen::Matrix3d R = utils::quat2rmat(rot);
             Eigen::Vector3d Txab = m.segment(BAT, 3).asDiagonal() * xa - m.segment(BAA, 3);
-            m.segment(VEL, 3) += (R.transpose() * Txab + grav);
+            m.segment(VEL, 3) = (R.transpose() * Txab + grav);
 
             // orientation -> going to be an issue here
             m.segment(ORI, 4) = rot;
@@ -431,48 +490,7 @@ namespace odometry
 
         void dydx_dydq(const Eigen::Vector3d &xg, const Eigen::Vector3d &xa, double dt)
         {
-            dydx.setZero();
-            dydq.setZero();
-
-            dydx.block(POS, POS, 3, 3).setIdentity(3, 3);
-            dydx.block(VEL, VEL, 3, 3).setIdentity(3, 3);
-            dydx.block(POS, VEL, 3, 3).setIdentity(3, 3) *= dt;
-            dydx.block(BGA, BGA, 3, 3).setIdentity(3, 3);
-            dydx.block(BAA, BAA, 3, 3).setIdentity(3, 3);
-            dydx.block(BAT, BAT, 3, 3).setIdentity(3, 3);
-            dydx.block(GRAV, GRAV, 3, 3).setIdentity(3, 3);
-            dydx.block(POS, GRAV, 3, 3).setIdentity(3, 3) *= dt;
-            dydx.block(POS_LIDAR_IMU, POS_LIDAR_IMU, 3, 3).setIdentity(3, 3);
-            dydx.block(ORI_LIDAR_IMU, ORI_LIDAR_IMU, 4, 4).setIdentity(4, 4);
-
-            // -dt cause using global errors
-            Eigen::Matrix4d A = quat_4x4_rot(xg, -dt, true);
-            Eigen::Matrix3d dR[4];
-            Eigen::Matrix3d R = utils::extract_rot_dr(A * rot, dR);
-            Eigen::Vector3d T_ab = mult_bias.asDiagonal() * xa - acc_bias;
-
-            // derivatives of velocity w.r.t quaternion
-            for (int i = 0; i < 4; i++)
-                dydx.block(VEL, ORI + i, 3, 1) = dR[i].transpose() * T_ab * dt;
-
-            dydx.block(VEL, ORI, 3, 4) = dydx.block(VEL, ORI, 3, 4) * A;
-
-            // derivative of quaternion wrt self
-            dydx.block(ORI, ORI, 4, 4) = A;
-
-            dydq_setup(dydx, R, A, dt);
-
-            // derivative of velocity w.r.t gyro bias
-            dydx.block(VEL, BGA, 3, 3) = -dydq.block(VEL, Q_GYRO, 3, 3);
-
-            // quaternion derivative wrt gyro bias
-            dydx.block(ORI, BGA, 4, 3) = -dydq.block(ORI, Q_GYRO, 4, 3);
-
-            // derivatives of the velocity w.r.t the acc. bias
-            dydx.block(VEL, BAA, 3, 3) = -R.transpose() * dt;
-
-            // derivatives of the velocity w.r.t the acc. transformation
-            dydx.block(VEL, BAT, 3, 3) = R.transpose() * xa.asDiagonal() * dt;
+            dydx_dydq_base(xg, xa, dt, true);
         }
 
         void increment(double dt, const Eigen::Vector3d &xg, const Eigen::Vector3d &xa)
@@ -492,7 +510,7 @@ namespace odometry
 
             // increment imu_world_rot.
             prev_quat = rot;
-            rot = A * rot;
+            rot = A * curr_state.segment(ORI, 4);
 
             // BGA BAA mean reversion
             if (params->acc_process_noise_rev > 0.0)
@@ -518,7 +536,7 @@ namespace odometry
 
     struct StateOutput : public BaseState
     {
-        explicit StateOutput()
+        StateOutput()
             : BaseState(),
               imu_acc(Eigen::Vector3d::Zero()),
               imu_gyro(Eigen::Vector3d::Zero())
@@ -648,61 +666,17 @@ namespace odometry
 
             // velocity - using estimated as outputs
             Eigen::Matrix3d R = utils::quat2rmat(rot);
-            m.segment(VEL, 3) += (R.transpose() * imu_acc + grav);
+            m.segment(VEL, 3) = (R.transpose() * imu_acc + grav);
 
             // orientation
-            m.segment(ORI, 4) = imu_gyro;
+            m.segment(ORI, 4) = rot;
 
             return m;
         }
 
         void dydx_dydq(const Eigen::Vector3d &xg, const Eigen::Vector3d &xa, double dt)
         {
-            dydx.setZero();
-            dydq.setZero();
-
-            dydx.block(POS, POS, 3, 3).setIdentity(3, 3);
-            dydx.block(VEL, VEL, 3, 3).setIdentity(3, 3);
-            dydx.block(POS, VEL, 3, 3).setIdentity(3, 3) *= dt;
-            dydx.block(BGA, BGA, 3, 3).setIdentity(3, 3);
-            dydx.block(BAA, BAA, 3, 3).setIdentity(3, 3);
-            dydx.block(BAT, BAT, 3, 3).setIdentity(3, 3);
-            dydx.block(GRAV, GRAV, 3, 3).setIdentity(3, 3);
-            dydx.block(POS, GRAV, 3, 3).setIdentity(3, 3) *= dt;
-            dydx.block(POS_LIDAR_IMU, POS_LIDAR_IMU, 3, 3).setIdentity(3, 3);
-            dydx.block(ORI_LIDAR_IMU, ORI_LIDAR_IMU, 4, 4).setIdentity(4, 4);
-
-            // -dt cause using global errors
-            Eigen::Matrix4d A = quat_4x4_rot(xg, -dt, false);
-            Eigen::Matrix3d dR[4];
-            Eigen::Matrix3d R = utils::extract_rot_dr(A * rot, dR);
-            Eigen::Vector3d T_ab = xa;
-
-            // derivatives of velocity w.r.t quaternion
-            for (int i = 0; i < 4; i++)
-                dydx.block(VEL, ORI + i, 3, 1) = dR[i].transpose() * T_ab * dt;
-
-            dydx.block(VEL, ORI, 3, 4) = dydx.block(VEL, ORI, 3, 4) * A;
-
-            // derivative of quaternion wrt self
-            dydx.block(ORI, ORI, 4, 4) = A;
-
-            dydq_setup(dydx, R, A, dt);
-            // derivative of velocity w.r.t predicted acc
-            dydx.block(VEL, IMU_ACC, 3, 3) = R.transpose() * dt;
-
-            // quaternion derivative wrt predicted gyro
-            Eigen::Matrix3d rot_mat;
-            {
-                Eigen::Vector4d quat;
-                quat[0] = A(3, 2);
-                quat[1] = A(2, 3);
-                quat[2] = A(1, 3);
-                quat[3] = A(2, 1);
-
-                rot_mat = utils::quat2rmat(quat);
-            }
-            dydx.block(ORI, IMU_GYRO, 3, 3) = rot_mat * utils::quat2rmat(prev_quat);
+            dydx_dydq_base(xg, xa, dt, false);
         }
 
         void increment(double dt, const Eigen::Vector3d &xg, const Eigen::Vector3d &xa)
@@ -716,13 +690,14 @@ namespace odometry
             Eigen::Matrix4d A = quat_4x4_rot(xg, -dt, false);
             Eigen::Matrix3d R = utils::quat2rmat(A * curr_state.segment(ORI, 4));
 
-            // increment imu_world_vel.
-            Eigen::Vector3d T_ab = curr_state.segment(BAT, 3).asDiagonal() * xa - curr_state.segment(BAA, 3);
-            vel += (R.transpose() * T_ab + curr_state.segment(GRAV, 3)) * dt;
+            // increment imu_world_vel. -> should be bias free
+            // Eigen::Vector3d T_ab = curr_state.segment(BAT, 3).asDiagonal() * xa - curr_state.segment(BAA, 3);
+            // vel += (R.transpose() * T_ab + curr_state.segment(GRAV, 3)) * dt;
+            vel += (R.transpose() * xa + curr_state.segment(GRAV, 3)) * dt;
 
             // increment imu_world_rot.
             prev_quat = rot;
-            rot = A * rot;
+            rot = A * curr_state.segment(ORI, 4);
 
             // BGA BAA mean reversion
             if (params->acc_process_noise_rev > 0.0)
@@ -733,18 +708,22 @@ namespace odometry
 
             // increase imu prediction by the bias
             imu_acc += curr_state.segment(BAA, 3) * dt;
-            imu_gyro += gyro_bias.segment(BGA, 3) * dt;
+            imu_gyro += curr_state.segment(BGA, 3) * dt;
         }
 
         void predict(const Eigen::Vector3d &xg, const Eigen::Vector3d &xa, double dt, bool predict_state, bool prop_cov)
         {
+            // use previous prediction as input
+            Eigen::Vector3d gyr = imu_gyro;
+            Eigen::Vector3d acc = imu_acc;
+
             if (predict_state)
-                increment(dt, xg, xa);
+                increment(dt, gyr, acc);
 
             if (prop_cov)
             {
                 noise_covariance_increment(dt);
-                dydx_dydq(xg, xa, dt);
+                dydx_dydq(gyr, acc, dt);
                 P = dydx * P * dydx.transpose() + dydq * Q * dydq.transpose();
             }
         }
