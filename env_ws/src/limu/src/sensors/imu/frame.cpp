@@ -3,7 +3,7 @@
 
 namespace
 {
-    const int max_init_count = 200;
+    const int max_init_count = 100;
 }
 
 namespace frame
@@ -63,6 +63,7 @@ namespace frame
         {
             ROS_WARN("[WARN] IMU loop back, clear IMU buffer.");
             buffer.clear();
+            clear_calib = true;
         }
 
         buffer.emplace_back(msg_new);
@@ -74,9 +75,63 @@ namespace frame
         ROS_WARN("[WARN] Reset Imu process.");
         (mean_acc << 0.0, 0.0, -1.0).finished();
         mean_gyro = utils::Vec3d::Zero();
-        enabled = true;
         init_iter_num = 1;
         need_init = true;
     }
 
+    void Imu::process_package(frame::LidarImuInit::Ptr &sync)
+    {
+        if (enabled)
+        {
+            if (sync->imu_buffer.empty())
+                return;
+            ROS_ASSERT(sync->processed_frame != nullptr);
+
+            if (need_init)
+            {
+                imu_init(sync);
+                need_init = true;
+
+                if (init_iter_num > max_init_count)
+                    need_init = false;
+            }
+            return;
+        }
+    }
+
+    void Imu::imu_init(frame::LidarImuInit::Ptr &sync)
+    {
+        /** 1. initializing the gravity, gyro bias, acc and gyro covariance
+         ** 2. normalize the acceleration measurenments to unit gravity **/
+        const double percent_initialized = double(init_iter_num) / max_init_count * 100;
+        ROS_INFO("IMU Initializing: %.1f %%", percent_initialized);
+
+        if (first_frame)
+        {
+            reset();
+            first_frame = false;
+
+            // Initialize mean acceleration and mean gyro using the first IMU measurement
+            const auto &imu_acc = sync->imu_buffer.front()->linear_acceleration;
+            const auto &imu_gyr = sync->imu_buffer.front()->angular_velocity;
+            mean_acc << imu_acc.x, imu_acc.y, imu_acc.z;
+            mean_gyro << imu_gyr.x, imu_gyr.y, imu_gyr.z;
+        }
+
+        // Update mean acceleration and mean gyro using all IMU measurements in the buffer
+        for (const auto &imu : sync->imu_buffer)
+        {
+            const auto &imu_acc = imu->linear_acceleration;
+            const auto &imu_gyr = imu->angular_velocity;
+            const utils::Vec3d cur_acc{imu_acc.x, imu_acc.y, imu_acc.z};
+            const utils::Vec3d cur_gyr{imu_gyr.x, imu_gyr.y, imu_gyr.z};
+
+            mean_acc += (cur_acc - mean_acc) / init_iter_num;
+            mean_gyro += (cur_gyr - mean_gyro) / init_iter_num;
+
+            init_iter_num++;
+        }
+
+        sync->mean_acc = mean_acc;
+    }
 }

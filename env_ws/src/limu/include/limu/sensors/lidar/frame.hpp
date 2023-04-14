@@ -25,6 +25,19 @@ POINT_CLOUD_REGISTER_POINT_STRUCT(
 namespace frame
 {
     using PointCloud = utils::PointCloudXYZI;
+    struct LidarTSFrame
+    {
+        LidarTSFrame()
+            : pc(new PointCloud()),
+              acc_time(0.0), freq(0.0),
+              curvature_time(0.0) {}
+
+        PointCloud::Ptr pc;
+        double curvature_time; // represents all curvature point for current set
+        double acc_time;       // in milliseconds
+        double freq;           // in hz
+    };
+
     class Lidar
     {
 
@@ -59,8 +72,7 @@ namespace frame
 
         explicit Lidar(ros::NodeHandle &nh)
             : config(std::make_shared<ProcessingInfo>()),
-              prev_timestamp(0.0), scan_ang_vel(0.0), scan_count(0),
-              Li_init_complete(false), lidar_end_time(0.0)
+              prev_timestamp(0.0), scan_ang_vel(0.0), lidar_end_time(0.0)
         {
             nh.param<double>("frame_rate", config->frame_rate, 10.0);
             nh.param<double>("max_range", config->max_range, 100.0);
@@ -104,21 +116,15 @@ namespace frame
         PointCloud::Ptr get_lidar_buffer_front()
         {
             std::unique_lock<std::mutex> lock(data_mutex);
-            return processed_buffer.front();
-        }
-
-        PointCloud::Ptr get_split_lidar_buffer_front()
-        {
-            std::unique_lock<std::mutex> lock(data_mutex);
-            const auto &p = split_buffer.front();
-            return p.second;
+            const auto &front_buff = split_buffer.front();
+            return front_buff.pc;
         }
 
         double get_pc_time_ms()
         {
             std::unique_lock<std::mutex> lock(data_mutex);
-            const auto &p = split_buffer.front();
-            return p.second->points[0].curvature;
+            const auto &front_buff = split_buffer.front();
+            return front_buff.curvature_time;
         }
 
         double get_pc_time_s()
@@ -126,13 +132,19 @@ namespace frame
             return get_pc_time_ms() / double(1000);
         }
 
-        double curr_acc_segment_time()
+        double accumulated_segment_time()
         {
             std::unique_lock<std::mutex> lock(data_mutex);
-            const auto &p = split_buffer.front();
-            return p.first;
+            const auto &front_buff = split_buffer.front();
+            return front_buff.acc_time;
         }
 
+        double get_freq_hz()
+        {
+            std::unique_lock<std::mutex> lock(data_mutex);
+            const auto &front_buff = split_buffer.front();
+            return front_buff.freq;
+        }
         void pop()
         {
             std::unique_lock<std::mutex> lock(data_mutex);
@@ -167,8 +179,7 @@ namespace frame
 
         // attributes
         sensor_msgs::PointCloud2::ConstPtr msg_holder;
-        std::deque<PointCloud::Ptr> processed_buffer;                // holds processed pointcloud from msg.
-        std::deque<std::pair<double, PointCloud::Ptr>> split_buffer; // buffer split into towns.
+        std::deque<LidarTSFrame> split_buffer; // buffer split into towns.
 
         // class manipulators
         std::mutex data_mutex;
@@ -176,9 +187,7 @@ namespace frame
         double scan_ang_vel;
         double angle_limit;
         double blind_sq;
-        int scan_count;
         double max_sq;
-        bool Li_init_complete;
     };
 }
 #endif

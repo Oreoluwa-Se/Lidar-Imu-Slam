@@ -1,20 +1,18 @@
 #include "limu/sensors/lidar/frame.hpp"
 #include <tbb/concurrent_vector.h>
 #include <tbb/parallel_for.h>
-#include <unordered_map>
+#include <map>
 
 namespace frame
 {
     void Lidar::initialize(const sensor_msgs::PointCloud2::ConstPtr &msg)
     {
         std::lock_guard<std::mutex> lock(data_mutex);
-        scan_count++;
         const auto curr_time = msg->header.stamp.toSec();
 
         if (curr_time < prev_timestamp)
         {
             ROS_ERROR("Lidar Buffer Looped. Clearning buffer");
-            processed_buffer.clear();
             split_buffer.clear();
         }
 
@@ -37,44 +35,41 @@ namespace frame
     {
         double message_time_ms = message_time * 1000; // convert to ms
         double last_frame_end_time = message_time_ms;
+        double prev_ts = 0.0, curr_freq = 0.0;
 
-        std::vector<std::unordered_map<double, double>> time_acctime_maps;
-        std::vector<double> curvature_keys;
-        std::deque<std::pair<double, PointCloud::Ptr>> buffer;
+        // each curvature is assigned it's own LidarTSFrame struct
+        std::map<double, LidarTSFrame> curvature_keys;
 
-        int cur_segment = -1;
-        // split pointcloud into curvature-keyed segments
         for (const auto &point : surface_cloud->points)
         {
-            if (curvature_keys.empty() || point.curvature != curvature_keys.back())
+            const double &cv_time = point.curvature;
+            auto it = curvature_keys.find(cv_time);
+            if (it == curvature_keys.end())
             {
-                curvature_keys.push_back(point.curvature);
-                buffer.emplace_back(0.0, PointCloud::Ptr(new PointCloud()));
-                time_acctime_maps.emplace_back();
-                cur_segment++;
+                curvature_keys.emplace(cv_time, LidarTSFrame());
+                auto &frame = curvature_keys[cv_time];
+                frame.curvature_time = cv_time;
+                frame.acc_time = cv_time + message_time_ms - last_frame_end_time;
+                last_frame_end_time += frame.acc_time;
+
+                // calculate the frequency between two timestamps
+                curr_freq = (cv_time - prev_ts) / 1000.0; // ms
+                frame.freq = 1 / curr_freq;
+
+                prev_ts = cv_time;
             }
 
-            time_acctime_maps[cur_segment][point.curvature] = point.curvature + message_time_ms - last_frame_end_time;
-            last_frame_end_time += time_acctime_maps[cur_segment][point.curvature];
-            buffer[cur_segment].second->points.push_back(point);
+            // include point for current timestamp
+            curvature_keys[cv_time].pc->push_back(point);
         }
 
-        // flatten split buffer and time-accumulation maps
-        for (size_t i = 0; i < curvature_keys.size(); i++)
-        {
-            for (const auto &point : buffer[i].second->points)
-            {
-                buffer[i].first = time_acctime_maps[i][point.curvature];
-                buffer[i].second->points.push_back(point);
-            }
-            // clear unused memory
-            buffer[i].second->points.shrink_to_fit();
-        }
-
-        std::move(
-            std::make_move_iterator(buffer.begin()),
-            std::make_move_iterator(buffer.end()),
-            std::back_inserter(split_buffer));
+        // updating the deque buffer
+        std::transform(
+            std::make_move_iterator(curvature_keys.begin()),
+            std::make_move_iterator(curvature_keys.end()),
+            std::back_inserter(split_buffer),
+            [](std::pair<double, LidarTSFrame> &&p)
+            { return std::move(p.second); });
     }
 
     void Lidar::iqr_processing(PointCloud::Ptr &surface_cloud, std::vector<double> &dist)
@@ -94,14 +89,6 @@ namespace frame
                 if (distance >= low_bound && distance <= high_bound)
                     inliers.emplace_back(surface_cloud->points[idx]);
             });
-
-        if (!Li_init_complete)
-        { // needed for initializing the extrninics
-            PointCloud::Ptr processed(new PointCloud());
-            processed->points.assign(surface_cloud->points.begin(), surface_cloud->points.end());
-            processed_buffer.push_back(std::move(processed));
-            processed.reset();
-        }
 
         surface_cloud->points.assign(inliers.begin(), inliers.end());
     }

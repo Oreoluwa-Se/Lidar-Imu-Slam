@@ -45,8 +45,7 @@ namespace utils
     // calculate motion between two poses.
     utils::Vec3Tuple get_motion(const SE3d &start_pose, const SE3d &end_pose, double dt);
 
-    template <typename T>
-    Eigen::Matrix<T, 3, 1> rotation_matrix_to_euler_angles(const Eigen::Matrix<T, 3, 3> &rot);
+    utils::Vec3d rotation_matrix_to_euler_angles(const utils::Mat3d &rot);
 
     // ADHOC
     inline double square(double x)
@@ -56,6 +55,28 @@ namespace utils
 
     // Helper for calculating voxel
     utils::Voxel get_vox_index(const utils::Vec3d &point, double vox_size);
+
+    inline void print_vector(const std::vector<utils::PointNormal, Eigen::aligned_allocator<utils::PointNormal>> &vec)
+    {
+        std::cout << "Eigen::Vector3d Vector: " << std::endl;
+        std::cout << "------------------------" << std::endl;
+        for (int i = 0; i < vec.size(); ++i)
+        {
+            std::cout << vec[i].x << ", " << vec[i].y << ", " << vec[i].z << std::endl;
+        }
+        std::cout << "------------------------" << std::endl;
+    }
+
+    inline void print_vector(const std::vector<utils::Vec3d> &vec)
+    {
+        std::cout << "Eigen::Vector3d Vector: " << std::endl;
+        std::cout << "------------------------" << std::endl;
+        for (int i = 0; i < vec.size(); ++i)
+        {
+            std::cout << vec[i][0] << ", " << vec[i][1] << ", " << vec[i][2] << std::endl;
+        }
+        std::cout << "------------------------" << std::endl;
+    }
 
 }
 #endif

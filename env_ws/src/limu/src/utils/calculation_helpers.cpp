@@ -146,14 +146,11 @@ namespace utils
                             static_cast<int>(point.z() / vox_size));
     }
 
-    template <typename T>
-    Eigen::Matrix<T, 3, 1> rotation_matrix_to_euler_angles(const Eigen::Matrix<T, 3, 3> &rot)
+    utils::Vec3d rotation_matrix_to_euler_angles(const utils::Mat3d &rot)
     {
-        static_assert(rot.rows() == 3 && rot.cols() == 3, "rot must be a 3x3 matrix");
-
-        T sy = sqrt(rot(0, 0) * rot(0, 0) + rot(1, 0) * rot(1, 0));
+        double sy = sqrt(rot(0, 0) * rot(0, 0) + rot(1, 0) * rot(1, 0));
         bool singular = sy < 1e-6;
-        T x, y, z;
+        double x, y, z;
         if (!singular)
         {
             x = atan2(rot(2, 1), rot(2, 2));
@@ -166,7 +163,7 @@ namespace utils
             y = atan2(-rot(2, 0), sy);
             z = 0;
         }
-        Eigen::Matrix<T, 3, 1> ang(x, y, z);
+        utils::Vec3d ang(x, y, z);
         return ang;
     }
 }

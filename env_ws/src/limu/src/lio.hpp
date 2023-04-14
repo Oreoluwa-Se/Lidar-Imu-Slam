@@ -4,11 +4,11 @@
 #include "tf2_ros/static_transform_broadcaster.h"
 #include "geometry_msgs/TransformStamped.h"
 #include "tf2_ros/transform_broadcaster.h"
-#include "geometry_msgs/PoseStamped.h"
 #include "limu/sensors/lidar/frame.hpp"
 #include "limu/sensors/sync_frame.hpp"
 #include "limu/sensors/imu/frame.hpp"
 #include "limu/kalman/ekf.hpp"
+#include "geometry_msgs/PoseStamped.h"
 #include "sensor_msgs/PointCloud2.h"
 #include "sensor_msgs/Imu.h"
 #include "nav_msgs/Path.h"
@@ -95,6 +95,7 @@ private:
     frame::Imu::Ptr imu_ptr;
     odometry::EKF::Ptr ekf;
     Trackers tracker;
+
     odometry::dyn_share_modified<double> data;
     // broadcasting
     tf2_ros::TransformBroadcaster tf_broadcaster;

@@ -35,6 +35,11 @@ struct CalibState
           ang_acc(V3D::Zero()), linear_acc(acc),
           timeStamp(timestamp) {}
 
+    CalibState(const M3D &rot, const V3D &omg, const V3D &lin_vel, const double &timestamp)
+        : rot_end(rot), ang_vel(omg), linear_vel(lin_vel),
+          ang_acc(V3D::Zero()), linear_acc(V3D::Zero()),
+          timeStamp(timestamp) {}
+
     CalibState(const CalibState &b)
     {
         this->rot_end = b.rot_end;
@@ -94,9 +99,10 @@ struct Angular_Vel_Cost_only_Rot
     template <typename T>
     bool operator()(const T *q, T *residual) const
     {
-        Eigen::Map<const Eigen::Matrix<T, 3, 1>> IMU_ang_vel_T(IMU_ang_vel.data());
-        Eigen::Map<const Eigen::Matrix<T, 3, 1>> Lidar_ang_vel_T(Lidar_ang_vel.data());
-        Eigen::Quaternion<T> q_LI = Eigen::Map<const Eigen::Quaternion<T>>(q);
+        const Eigen::Quaternion<T> q_LI(q);
+        const Eigen::Matrix<T, 3, 1> IMU_ang_vel_T = IMU_ang_vel.cast<T>();
+        const Eigen::Matrix<T, 3, 1> Lidar_ang_vel_T = Lidar_ang_vel.cast<T>();
+
         Eigen::Matrix<T, 3, 1> resi = q_LI.toRotationMatrix() * Lidar_ang_vel_T - IMU_ang_vel_T;
         residual[0] = resi[0];
         residual[1] = resi[1];
@@ -215,6 +221,7 @@ struct Linear_acc_Cost
 class SensorInit
 {
 public:
+    typedef std::shared_ptr<SensorInit> Ptr;
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
     SensorInit(){};
 
@@ -222,11 +229,12 @@ public:
         const std::deque<CalibState> &signal_in,
         std::deque<CalibState> &signal_out);
 
-    void LI_Initialization(int &orig_odom_freq, int &cut_frame_num, double &timediff_imu_wrt_lidar, const double &move_start_time);
+    void LI_Initialization(double orig_odom_freq, double &timediff_imu_wrt_lidar, const double &move_start_time);
     void xcorr_temporal_init(const double &odom_freq);
     void IMU_time_compensate(const double &lag_time, const bool &is_discard);
     void downsample_interpolate_imu(const double &move_start_time);
     void push_IMU_CalibState(const V3D &omg, const V3D &acc, const double &timestamp);
+    void push_Lidar_CalibState(const M3D &rot, const V3D &omg, const V3D &lin_vel, const double &timestamp);
     void normalize_acc(std::deque<CalibState> &signal_in);
     void set_IMU_state(const std::deque<CalibState> &IMU_states);
     void set_Lidar_state(const std::deque<CalibState> &Lidar_states);
@@ -237,6 +245,7 @@ public:
     void solve_Rotation_only();
     void cut_sequence_tail();
     void central_diff();
+    bool data_sufficiency_assess(Eigen::MatrixXd &Jacobian_rot, int &frame_num, V3D &lidar_omg, double &orig_odom_freq);
     void print_initialization_result(
         double &time_L_I, M3D &R_L_I, V3D &p_L_I, V3D &bias_g,
         V3D &bias_a, V3D &grav, V3D &bias_at);
@@ -260,6 +269,49 @@ public:
     {
         return time_lag_2;
     }
+
+    inline double get_total_time_lag()
+    {
+        return time_delay_IMU_wtr_Lidar;
+    }
+
+    inline V3D get_Grav_L0()
+    {
+        return Grav_L0;
+    }
+
+    inline M3D get_R_LI()
+    {
+        return Rot_Lidar_wrt_IMU;
+    }
+
+    inline V3D get_T_LI()
+    {
+        return Trans_Lidar_wrt_IMU;
+    }
+
+    inline V3D get_gyro_bias()
+    {
+        return gyro_bias;
+    }
+
+    inline V3D get_acc_bias()
+    {
+        return acc_bias;
+    }
+
+    inline V3D get_mult_bias()
+    {
+        return mult_bias;
+    }
+
+    void clear_imu_buffer()
+    {
+        IMU_state_group_ALL.clear();
+    }
+
+public:
+    double data_accum_length;
 
 private:
     struct Butterworth // removes high frequency noise

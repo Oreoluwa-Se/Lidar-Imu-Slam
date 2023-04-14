@@ -1,6 +1,5 @@
 #include "limu/sensors/sensor_init.hpp"
 #include "tbb/parallel_for.h"
-#include <tbb/task_scheduler_init.h>
 
 namespace
 {
@@ -9,13 +8,14 @@ namespace
     const double init_time_allowance = 3.0;
 }
 void SensorInit::LI_Initialization(
-    int &orig_odom_freq, int &cut_frame_num,
-    double &timediff_imu_wrt_lidar, const double &move_start_time)
+    double orig_odom_freq, double &timediff_imu_wrt_lidar, const double &move_start_time)
 {
+    std::cout << "Pre downsampling" << std::endl;
     // downsample and interpolate imu time
     downsample_interpolate_imu(move_start_time);
+    std::cout << "Post downsample" << std::endl;
     IMU_time_compensate(0.0, true);
-
+    std::cout << "Downsampling and interpolation complete" << std::endl;
     std::deque<CalibState> IMU_after_zero_phase;
     std::deque<CalibState> Lidar_after_zero_phase;
 
@@ -25,16 +25,16 @@ void SensorInit::LI_Initialization(
     zero_phase_filt(get_Lidar_state(), Lidar_after_zero_phase);
     set_IMU_state(IMU_after_zero_phase);
     set_Lidar_state(Lidar_after_zero_phase);
-
+    std::cout << "Noise filtering  complete" << std::endl;
     // Align size of two sequences
     cut_sequence_tail();
-
+    std::cout << "Ends Trimmed" << std::endl;
     // calculate the time lag
-    xcorr_temporal_init(orig_odom_freq * cut_frame_num);
+    xcorr_temporal_init(orig_odom_freq);
     IMU_time_compensate(get_lag_time_1(), false);
 
     central_diff();
-
+    std::cout << "Post central diff" << std::endl;
     // filter passing to reduce noise
     std::deque<CalibState> IMU_after_2nd_zero_phase;
     std::deque<CalibState> Lidar_after_2nd_zero_phase;
@@ -44,9 +44,11 @@ void SensorInit::LI_Initialization(
 
     // .............| functions |...............
     solve_Rotation_only();
+    std::cout << "Solved rotation" << std::endl;
     solve_Rot_bias_gyro(timediff_imu_wrt_lidar);
+    std::cout << "Solved for gyro bias" << std::endl;
     acc_interpolate();
-
+    std::cout << "Linear acc calculated" << std::endl;
     solve_trans_biasacc_grav();
     double time_L_I = timediff_imu_wrt_lidar + time_delay_IMU_wtr_Lidar;
     print_initialization_result(time_L_I, Rot_Lidar_wrt_IMU, Trans_Lidar_wrt_IMU, gyro_bias, acc_bias, Grav_L0, mult_bias);
@@ -93,8 +95,7 @@ void SensorInit::Butter_filt(const std::deque<CalibState> &signal_in, std::deque
 
                 signal_out[i - coeff_size + 1] = temp_state;
             }
-        },
-        tbb::auto_partitioner());
+        });
 }
 
 void SensorInit::zero_phase_filt(const std::deque<CalibState> &signal_in, std::deque<CalibState> &signal_out)
@@ -169,7 +170,8 @@ void SensorInit::IMU_time_compensate(const double &lag_time, const bool &is_disc
     std::transform(
         IMU_state_group.begin(), IMU_state_group.end() - 1, IMU_state_group.begin(),
         [lag_time](CalibState &state)
-        { state.timeStamp -= lag_time; });
+        { state.timeStamp -= lag_time; 
+            return state; });
 
     // Find index of first Lidar state with timestamp >= first IMU state timestamp
     auto first_lidar_it = std::find_if(
@@ -262,6 +264,11 @@ void SensorInit::push_IMU_CalibState(const V3D &omg, const V3D &acc, const doubl
     IMU_state_group.emplace_back(omg, acc, timestamp);
 }
 
+void SensorInit::push_Lidar_CalibState(const M3D &rot, const V3D &omg, const V3D &lin_vel, const double &timestamp)
+{
+
+    Lidar_state_group.emplace_back(rot, omg, lin_vel, timestamp);
+}
 void SensorInit::set_IMU_state(const std::deque<CalibState> &IMU_states)
 {
     IMU_state_group.assign(IMU_states.begin(), IMU_states.end() - 1);
@@ -583,11 +590,67 @@ void SensorInit::solve_trans_biasacc_grav()
         // fout_acc_cost << setprecision(10) << acc_I.transpose() << " " << acc_L.transpose() << " "
         //               << IMU_state_group[i].timeStamp << " " << Lidar_state_group[i].timeStamp << endl;
     }
+}
 
-    // M3D Hessian_Trans = Jaco_Trans.transpose() * Jaco_Trans;
-    // Eigen::EigenSolver<M3D> es_trans(Hessian_Trans);
-    // M3D EigenValue_mat_trans = es_trans.pseudoEigenvalueMatrix();
-    // M3D EigenVec_mat_trans = es_trans.pseudoEigenvectors();
+bool SensorInit::data_sufficiency_assess(Eigen::MatrixXd &Jacobian_rot, int &frame_num, V3D &lidar_omg, double &orig_odom_freq)
+{
+
+    const int num_frames = 3 * frame_num;
+
+    // Calculation of Rotation Jacobian
+    Eigen::Matrix3d omg_skew = utils::skew_matrix(lidar_omg);
+    Jacobian_rot.block<3, 3>(num_frames, 0) = omg_skew;
+    bool data_sufficient = false;
+
+    // Give a Data Appraisal every second
+    int check = frame_num % 100;
+    std::cout << "Frame number: " << frame_num << std::endl;
+    if (check == 0)
+    {
+        std::cout << "data_sufficient check_2: " << frame_num << std::endl;
+
+        const auto Jacobian_block = Jacobian_rot.block(0, 0, num_frames, 3);
+
+        // don't need to calculate the entire thing just multply the block that have value
+        M3D Hessian_rot = Jacobian_block.transpose() * Jacobian_block;
+        Eigen::EigenSolver<M3D> es(Hessian_rot);
+        V3D EigenValue = es.eigenvalues().real();
+        M3D EigenVec_mat = es.eigenvectors().real();
+
+        M3D EigenMatCwise = EigenVec_mat.cwiseProduct(EigenVec_mat);
+        std::vector<double> EigenMat_1_col{EigenMatCwise(0, 0), EigenMatCwise(1, 0), EigenMatCwise(2, 0)};
+        std::vector<double> EigenMat_2_col{EigenMatCwise(0, 1), EigenMatCwise(1, 1), EigenMatCwise(2, 1)};
+        std::vector<double> EigenMat_3_col{EigenMatCwise(0, 2), EigenMatCwise(1, 2), EigenMatCwise(2, 2)};
+
+        int maxPos[3] = {0};
+        maxPos[0] = std::max_element(EigenMat_1_col.begin(), EigenMat_1_col.end()) - EigenMat_1_col.begin();
+        maxPos[1] = std::max_element(EigenMat_2_col.begin(), EigenMat_2_col.end()) - EigenMat_2_col.begin();
+        maxPos[2] = std::max_element(EigenMat_3_col.begin(), EigenMat_3_col.end()) - EigenMat_3_col.begin();
+
+        V3D Scaled_Eigen = EigenValue / data_accum_length; // the larger data_accum_length is, the more data is needed
+        V3D Rot_percent(Scaled_Eigen[1] * Scaled_Eigen[2],
+                        Scaled_Eigen[0] * Scaled_Eigen[2],
+                        Scaled_Eigen[0] * Scaled_Eigen[1]);
+
+        V3D Rot_percent_scaled(
+            std::min(Rot_percent[0], 1.0),
+            std::min(Rot_percent[1], 1.0),
+            std::min(Rot_percent[2], 1.0));
+
+        int axis[3];
+        axis[2] = std::max_element(maxPos, maxPos + 3) - maxPos;
+        axis[0] = std::min_element(maxPos, maxPos + 3) - maxPos;
+        axis[1] = 3 - (axis[0] + axis[2]);
+
+        if (Rot_percent[0] > 0.99 && Rot_percent[1] > 0.99 && Rot_percent[2] > 0.99)
+        {
+            std::cout << "[Initialization] Data accumulation finished, Lidar IMU initialization begins.\n\n";
+            std::cout << "============================================================ \n\n";
+            data_sufficient = true;
+        }
+    }
+
+    return data_sufficient;
 }
 
 void SensorInit::print_initialization_result(double &time_L_I, M3D &R_L_I, V3D &p_L_I, V3D &bias_g, V3D &bias_a, V3D &grav, V3D &bias_at)

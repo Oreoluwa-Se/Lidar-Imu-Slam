@@ -71,6 +71,12 @@ namespace utils
         return q;
     }
 
+    inline Eigen::Vector4d rot_norm(const Eigen::Vector4d &v)
+    {
+        Eigen::Quaterniond q(v(0), v(1), v(2), v(3));
+        q.normalize();
+        return q.coeffs();
+    }
     inline Eigen::Quaterniond quat_mult_norm(const Eigen::Vector4d &v1, const Eigen::Vector4d &v2)
     {
         Eigen::Quaterniond q1(v1);
@@ -100,7 +106,7 @@ namespace utils
 
     inline Eigen::Vector3d quat_to_euler(const Eigen::Vector4d &v1)
     {
-        Eigen::Quaterniond q(qvec.normalized());
+        Eigen::Quaterniond q(v1.normalized());
         Eigen::Vector3d euler;
 
         double sinr_cosp = 2.0 * (q.w() * q.x() + q.y() * q.z());
@@ -122,6 +128,26 @@ namespace utils
         euler(2) = std::atan2(siny_cosp, cosy_cosp);
 
         return euler;
+    }
+
+    inline Eigen::Matrix4d left_quat2mat(const Eigen::Quaterniond &q)
+    {
+        Eigen::Matrix4d mat;
+        mat << q.w(), -q.x(), -q.y(), -q.z(),
+            q.x(), q.w(), -q.z(), q.y(),
+            q.y(), q.z(), q.w(), -q.x(),
+            q.z(), -q.y(), q.x(), q.w();
+        return mat;
+    }
+
+    inline Eigen::Matrix4d right_quat2mat(const Eigen::Quaterniond &q)
+    {
+        Eigen::Matrix4d mat;
+        mat << q.w(), -q.x(), -q.y(), -q.z(),
+            q.x(), q.w(), q.z(), -q.y(),
+            q.y(), -q.z(), q.w(), q.x(),
+            q.z(), q.y(), -q.x(), q.w();
+        return mat;
     }
 
 }

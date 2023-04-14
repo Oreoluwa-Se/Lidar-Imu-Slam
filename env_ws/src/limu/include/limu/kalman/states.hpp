@@ -37,8 +37,8 @@ namespace odometry
     constexpr int POS_LIDAR_IMU = 22;
     constexpr int ORI_LIDAR_IMU = 25;
     constexpr int IMU_ACC = 29;
-    constexpr int IMU_GYRO = 33;
-    constexpr int LIDAR = 36;
+    constexpr int IMU_GYRO = 32;
+    constexpr int LIDAR = 35;
 
     constexpr int INNER_DIM = LIDAR;
     constexpr int POSE_DIM = 7;
@@ -132,6 +132,15 @@ namespace odometry
             (offset_R_L_I << 1, 0, 0, 0).finished(); // rotation from lidar frame L to imu frame I
             prev_quat = rot;                         // tracks previous quaternion
             process_covariance_setup();
+        }
+
+        void initialize_orientation(const Eigen::Vector3d &xa)
+        {
+            Eigen::Vector3d f_grav(0, 0, gravity);
+            Eigen::Quaterniond orient = Eigen::Quaterniond::FromTwoVectors(f_grav, xa);
+            Eigen::Vector4d q;
+            q << orient.w(), orient.x(), orient.y(), orient.z();
+            rot = q;
         }
 
         Eigen::Matrix4d quat_4x4_rot(const Eigen::Vector3d &xg, const double dt, bool b_input = true)
@@ -304,24 +313,37 @@ namespace odometry
              * properies are: pos, rot, offset_trans_lidar_imu, offset_rot_lidar_imu
              * note the offset_trans_lidar_imu to be put in quaternion form
              */
+
             Eigen::Matrix<double, Rows, h_matrix_col> props;
-            props.block(0, 0, Rows, 7) = P.block(0, 0, Rows, 7);
+            // imu_world parameters
+            props.block(0, 0, Rows, 3) = P.block(0, POS, Rows, 3);
+            props.block(0, 3, Rows, 4) = P.block(0, ORI, Rows, 4);
+
+            // lidar imu positions
             props.block(0, 7, Rows, 7) = P.block(0, POS_LIDAR_IMU, Rows, 7);
 
             return props;
         }
 
-        template <int State_DIM = Eigen::Dynamic, int Num_Measurements = Eigen::Dynamic>
-        Eigen::Matrix<double, h_matrix_col, Num_Measurements> col_iterative_properties(const Eigen::Matrix<double, State_DIM, Num_Measurements> &PHT)
+        template <int State_DIM = Eigen::Dynamic>
+        Eigen::MatrixXd col_iterative_properties(const Eigen::MatrixXd &PHT)
         {
             /*
              * Given the PHT matrix want to extract relevant information from the column
              * properies are: pos, rot, offset_trans_lidar_imu, offset_rot_lidar_imu
              * note the offset_trans_lidar_imu to be put in quaternion form
              */
-            Eigen::Matrix<double, h_matrix_col, Num_Measurements> props;
-            props.block(0, 0, 7, Num_Measurements) = PHT.block(0, 0, 7, Num_Measurements);
-            props.block(7, 0, 7, Num_Measurements) = PHT.block(POS_LIDAR_IMU, 0, 7, Num_Measurements);
+
+            const int num_meas = PHT.cols();
+            const int half_col = h_matrix_col / 2;
+
+            Eigen::MatrixXd props = Eigen::MatrixXd::Zero(h_matrix_col, num_meas);
+            // imu_world parameters
+            props.block(0, 0, 3, num_meas) = PHT.block(POS, 0, 3, num_meas);
+            props.block(3, 0, 4, num_meas) = PHT.block(ORI, 0, 4, num_meas);
+
+            // lidar imu positions
+            props.block(7, 0, half_col, num_meas) = PHT.block(POS_LIDAR_IMU, 0, 7, num_meas);
 
             return props;
         }
@@ -372,6 +394,7 @@ namespace odometry
             dydx = Eigen::MatrixXd::Zero(STATE_IN_DIM, STATE_IN_DIM);
             dydq = Eigen::MatrixXd::Zero(STATE_IN_DIM, Q_DIM);
             P = Eigen::MatrixXd::Zero(STATE_IN_DIM, STATE_IN_DIM);
+            initialize_state_covariance();
         }
 
         explicit StateInput(PARAMETERS::Ptr &parameters) : BaseState(parameters)
@@ -514,23 +537,27 @@ namespace odometry
 
             // BGA BAA mean reversion
             if (params->acc_process_noise_rev > 0.0)
-                acc_bias *= curr_state.segment(BAA, 3) * exp(-dt * params->acc_process_noise_rev);
+                acc_bias = curr_state.segment(BAA, 3) * exp(-dt * params->acc_process_noise_rev);
 
             if (params->gyro_process_noise > 0.0)
-                gyro_bias *= gyro_bias.segment(BGA, 3) * exp(-dt * params->gyro_process_noise);
+                gyro_bias = curr_state.segment(BGA, 3) * exp(-dt * params->gyro_process_noise);
         }
 
         void predict(const Eigen::Vector3d &xg, const Eigen::Vector3d &xa, double dt, bool predict_state, bool prop_cov)
         {
+            std::cout << "StatesInput File - Predict" << std::endl;
             if (predict_state)
                 increment(dt, xg, xa);
 
             if (prop_cov)
             {
+                std::cout << "StatesInput File - Propagate" << std::endl;
                 noise_covariance_increment(dt);
                 dydx_dydq(xg, xa, dt);
                 P = dydx * P * dydx.transpose() + dydq * Q * dydq.transpose();
             }
+
+            std::cout << "StatesInput File - Predict done" << std::endl;
         }
     };
 
@@ -544,6 +571,7 @@ namespace odometry
             dydx = Eigen::MatrixXd::Zero(INNER_DIM, INNER_DIM);
             dydq = Eigen::MatrixXd::Zero(INNER_DIM, Q_DIM);
             P = Eigen::MatrixXd::Zero(INNER_DIM, INNER_DIM);
+            initialize_state_covariance();
         }
 
         explicit StateOutput(PARAMETERS::Ptr &parameters)
@@ -701,10 +729,10 @@ namespace odometry
 
             // BGA BAA mean reversion
             if (params->acc_process_noise_rev > 0.0)
-                acc_bias *= curr_state.segment(BAA, 3) * exp(-dt * params->acc_process_noise_rev);
+                acc_bias = curr_state.segment(BAA, 3) * exp(-dt * params->acc_process_noise_rev);
 
             if (params->gyro_process_noise > 0.0)
-                gyro_bias *= curr_state.segment(BGA, 3) * exp(-dt * params->gyro_process_noise);
+                gyro_bias = curr_state.segment(BGA, 3) * exp(-dt * params->gyro_process_noise);
 
             // increase imu prediction by the bias
             imu_acc += curr_state.segment(BAA, 3) * dt;
@@ -716,12 +744,13 @@ namespace odometry
             // use previous prediction as input
             Eigen::Vector3d gyr = imu_gyro;
             Eigen::Vector3d acc = imu_acc;
-
+            std::cout << "StatesOutput File - Predict" << std::endl;
             if (predict_state)
                 increment(dt, gyr, acc);
 
             if (prop_cov)
             {
+                std::cout << "StatesOutput File - Propagate" << std::endl;
                 noise_covariance_increment(dt);
                 dydx_dydq(gyr, acc, dt);
                 P = dydx * P * dydx.transpose() + dydq * Q * dydq.transpose();
