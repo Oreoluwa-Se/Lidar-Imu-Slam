@@ -25,28 +25,14 @@ POINT_CLOUD_REGISTER_POINT_STRUCT(
 namespace frame
 {
     using PointCloud = utils::PointCloudXYZI;
-    struct LidarTSFrame
-    {
-        LidarTSFrame()
-            : pc(new PointCloud()),
-              acc_time(0.0), freq(0.0),
-              curvature_time(0.0) {}
-
-        PointCloud::Ptr pc;
-        double curvature_time; // represents all curvature point for current set
-        double acc_time;       // in milliseconds
-        double freq;           // in hz
-    };
-
     class Lidar
     {
 
     public:
         typedef std::shared_ptr<Lidar> Ptr;
-
-        struct ProcessingInfo
+        struct PreProcessInfo
         {
-            typedef std::shared_ptr<ProcessingInfo> Ptr;
+            typedef std::shared_ptr<PreProcessInfo> Ptr;
 
             // lidar information
             double frame_rate;
@@ -55,42 +41,20 @@ namespace frame
             double min_angle;
             double max_angle;
             int num_scan_lines;
-            int frame_split_num;
-
-            // voxel information
-            double voxel_size;
-            int vox_side_length;
-            int max_points_per_voxel;
-
-            // Icp information
-            bool deskew;
-            double min_motion_th;
-            int icp_max_iteration;
-            double initial_threshold;
-            double estimation_threshold;
         };
 
-        explicit Lidar(ros::NodeHandle &nh)
-            : config(std::make_shared<ProcessingInfo>()),
+        explicit Lidar(std::string &params_location)
+            : config(std::make_shared<PreProcessInfo>()),
               prev_timestamp(0.0), scan_ang_vel(0.0), lidar_end_time(0.0)
         {
-            nh.param<double>("frame_rate", config->frame_rate, 10.0);
-            nh.param<double>("max_range", config->max_range, 100.0);
-            nh.param<double>("min_range", config->min_range, 5.0);
-            nh.param<double>("min_angle", config->min_angle, 0.0);
-            nh.param<double>("max_angle", config->max_angle, 360.0);
-            nh.param<int>("num_scan_lines", config->num_scan_lines, 16);
-            nh.param<int>("frame_split_num", config->frame_split_num, 1);
+            YAML::Node node = YAML::LoadFile(params_location);
 
-            nh.param<double>("voxel_size", config->voxel_size, config->max_range / 100.0);
-            nh.param<int>("vox_side_length", config->vox_side_length, 3);
-            nh.param<int>("max_points_per_voxel", config->max_points_per_voxel, 10);
-
-            nh.param<bool>("deskew", config->deskew, false);
-            nh.param<double>("min_motion_th", config->min_motion_th, 0.1);
-            nh.param<int>("icp_max_iteration", config->icp_max_iteration, 500);
-            nh.param<double>("initial_threshold", config->initial_threshold, 2.0);
-            nh.param<double>("estimation_threshold", config->estimation_threshold, 0.0001);
+            config->frame_rate = node["scan_preprocessing"]["frame_rate"].as<double>();
+            config->max_range = node["scan_preprocessing"]["max_range"].as<double>();
+            config->min_range = node["scan_preprocessing"]["min_range"].as<double>();
+            config->min_angle = node["scan_preprocessing"]["min_angle"].as<double>();
+            config->max_angle = node["scan_preprocessing"]["max_angle"].as<double>();
+            config->num_scan_lines = node["scan_preprocessing"]["num_scan_lines"].as<int>();
 
             scan_ang_vel = utils::calc_scan_ang_vel(config->frame_rate);
             setup();
@@ -109,57 +73,26 @@ namespace frame
         bool buffer_empty()
         {
             std::unique_lock<std::mutex> lock(data_mutex);
-            return split_buffer.empty();
+            return buffer.empty();
         }
         // lidar information
 
-        PointCloud::Ptr get_lidar_buffer_front()
+        std::deque<utils::LidarFrame> get_lidar_buffer_front()
         {
             std::unique_lock<std::mutex> lock(data_mutex);
-            const auto &front_buff = split_buffer.front();
-            return front_buff.pc;
+            return buffer.front();
         }
 
-        double get_pc_time_ms()
-        {
-            std::unique_lock<std::mutex> lock(data_mutex);
-            const auto &front_buff = split_buffer.front();
-            return front_buff.curvature_time;
-        }
-
-        double get_pc_time_s()
-        {
-            return get_pc_time_ms() / double(1000);
-        }
-
-        double accumulated_segment_time()
-        {
-            std::unique_lock<std::mutex> lock(data_mutex);
-            const auto &front_buff = split_buffer.front();
-            return front_buff.acc_time;
-        }
-
-        double get_freq_hz()
-        {
-            std::unique_lock<std::mutex> lock(data_mutex);
-            const auto &front_buff = split_buffer.front();
-            return front_buff.freq;
-        }
         void pop()
         {
             std::unique_lock<std::mutex> lock(data_mutex);
-            split_buffer.pop_front();
+            buffer.pop_front();
         }
-
-        // functions for broadcasting ros tings
-        void set_current_pose_nav(
-            const utils::Vec3d &pose, const Eigen::Quaterniond &quat,
-            const ros::Time &time, std::string &odom_frame, std::string &child_frame);
 
     public:
         geometry_msgs::TransformStamped current_pose;
         nav_msgs::Odometry odom_msg;
-        std::shared_ptr<ProcessingInfo> config;
+        std::shared_ptr<PreProcessInfo> config;
         double lidar_end_time;
 
     private:
@@ -171,15 +104,13 @@ namespace frame
             angle_limit = config->max_angle - config->min_angle;
         }
 
-        void iqr_processing(PointCloud::Ptr &surface_cloud, std::vector<double> &);
+        void sort_clouds(std::vector<utils::Point::Ptr> &points);
 
-        void sort_clouds(PointCloud::Ptr &surface_cloud);
-
-        void split_clouds(const PointCloud::Ptr &surface_cloud, double &message_time);
+        void split_clouds(const std::vector<utils::Point::Ptr> &points);
 
         // attributes
         sensor_msgs::PointCloud2::ConstPtr msg_holder;
-        std::deque<LidarTSFrame> split_buffer; // buffer split into towns.
+        std::deque<std::deque<utils::LidarFrame>> buffer; // buffer split into towns.
 
         // class manipulators
         std::mutex data_mutex;
@@ -188,6 +119,7 @@ namespace frame
         double angle_limit;
         double blind_sq;
         double max_sq;
+        int frame_idx = 1;
     };
 }
 #endif

@@ -9,6 +9,7 @@
 #include "types.hpp"
 #include <vector>
 #include <cmath>
+#include <iomanip>
 
 namespace
 {
@@ -19,6 +20,11 @@ namespace
 
 namespace utils
 {
+    inline double square(double x)
+    {
+        return x * x;
+    }
+
     // Pointcloud processing.
     std::vector<double> get_time_stamps(const sensor_msgs::PointCloud2::ConstPtr &msg,
                                         const sensor_msgs::PointField &field = {});
@@ -35,11 +41,15 @@ namespace utils
 
     // create skew matrix.
     utils::Mat3d skew_matrix(const utils::Vec3d &vec);
+    utils::Mat3d skew_matrix(const utils::Point &vec);
+    utils::Mat3d skew_matrix(const utils::Point::Ptr &vec);
 
     // convert vector to matrix.
     SE3d vector6d_to_mat4d(const utils::vector<6> &x);
 
     // use a Transform matrix to transform a set of points.
+    void transform_points(const SE3d &T, std::vector<utils::Point::Ptr> &points);
+    void transform_points(const SE3d &T, std::vector<utils::Point> &points);
     void transform_points(const SE3d &T, utils::Vec3dVector &points);
 
     // calculate motion between two poses.
@@ -47,36 +57,18 @@ namespace utils
 
     utils::Vec3d rotation_matrix_to_euler_angles(const utils::Mat3d &rot);
 
-    // ADHOC
-    inline double square(double x)
-    {
-        return x * x;
-    }
+    void rot_mat_norm(utils::Mat3d &rot_mat);
+
+    void vec_2_matrices(const std::vector<double> &R, const std::vector<double> &t, utils::Mat3d &r_mat, utils::Vec3d &t_vec);
 
     // Helper for calculating voxel
     utils::Voxel get_vox_index(const utils::Vec3d &point, double vox_size);
+    utils::Voxel get_vox_index(const utils::Point &point, double vox_size);
+    utils::Voxel get_vox_index(const utils::Point::Ptr &point, double vox_size);
 
-    inline void print_vector(const std::vector<utils::PointNormal, Eigen::aligned_allocator<utils::PointNormal>> &vec)
-    {
-        std::cout << "Eigen::Vector3d Vector: " << std::endl;
-        std::cout << "------------------------" << std::endl;
-        for (int i = 0; i < vec.size(); ++i)
-        {
-            std::cout << vec[i].x << ", " << vec[i].y << ", " << vec[i].z << std::endl;
-        }
-        std::cout << "------------------------" << std::endl;
-    }
-
-    inline void print_vector(const std::vector<utils::Vec3d> &vec)
-    {
-        std::cout << "Eigen::Vector3d Vector: " << std::endl;
-        std::cout << "------------------------" << std::endl;
-        for (int i = 0; i < vec.size(); ++i)
-        {
-            std::cout << vec[i][0] << ", " << vec[i][1] << ", " << vec[i][2] << std::endl;
-        }
-        std::cout << "------------------------" << std::endl;
-    }
+    std::vector<double> IQR(const std::vector<double> &data);
+    double calculate_mad(const std::vector<double> &data);
+    double calculate_median(const std::vector<double> &sorted_data, size_t start, size_t end);
 
 }
 #endif

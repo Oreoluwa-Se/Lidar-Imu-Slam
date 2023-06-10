@@ -4,565 +4,605 @@
 #include <tbb/blocked_range.h>
 #include <type_traits>
 #include <iomanip>
+#include <sys/stat.h>
+#include <filesystem>
+#include <string>
+#include <fstream>
+#include <iostream>
+#include <sstream>
 
 namespace
 {
+    // initial points threshold
+    constexpr int init_points_req = 100;
+
     auto weight = [](double res_sq, double th)
     { return utils::square(th) / utils::square(th + res_sq); };
 
-    void printEigenMatrix(const Eigen::MatrixXd &matrix, const std::string &tableName)
+    int save_pose_to_log(const std::vector<Sophus::SE3d> &poses, const std::string &file_path, int idx)
     {
-        std::cout << "Table Name: " << tableName << std::endl;
-        std::cout << "Dimensions: " << matrix.rows() << " x " << matrix.cols() << std::endl;
-        std::cout << "----------------------------------------" << std::endl;
-        for (int i = 0; i < matrix.rows(); ++i)
+        // Extract the directory path from the file path
+        size_t last_separator_pos = file_path.find_last_of("/\\");
+        std::string dir_path = file_path.substr(0, last_separator_pos);
+
+        // Check if the directory exists
+        struct stat info;
+        if (stat(dir_path.c_str(), &info) != 0 || !(info.st_mode & S_IFDIR))
         {
-            for (int j = 0; j < matrix.cols(); ++j)
+            // Directory doesn't exist, create it
+#ifdef _WIN32
+            int status = _mkdir(dir_path.c_str());
+#else
+            int status = mkdir(dir_path.c_str(), 0777);
+#endif
+
+            if (status != 0)
             {
-                std::cout << std::setw(10) << std::setprecision(4) << matrix(i, j) << " ";
+                std::cerr << "Failed to create directory: " << dir_path << std::endl;
+                return false;
             }
-            std::cout << std::endl;
         }
-        std::cout << "----------------------------------------" << std::endl;
-    }
 
-    void printMatchedPoints(const std::vector<Eigen::Vector3d> &src, const std::vector<Eigen::Vector3d> &targ)
-    {
-        std::cout << "Matched Points" << std::endl;
-        std::cout << "----------------------------------------" << std::endl;
-        std::cout << std::setw(15) << "Source X" << std::setw(15) << "Source Y" << std::setw(15) << "Source Z";
-        std::cout << std::setw(15) << "Target X" << std::setw(15) << "Target Y" << std::setw(15) << "Target Z" << std::endl;
-        std::cout << "----------------------------------------" << std::endl;
-        for (int i = 0; i < src.size(); ++i)
+        // Open the file in append mode
+        std::ofstream file;
+        if (idx == 0)
+            file.open(file_path);
+        else
+            file.open(file_path, std::ios_base::app);
+
+        if (!file.is_open())
         {
-            std::cout << std::setw(15) << std::setprecision(4) << src[i][0] << std::setw(15) << std::setprecision(4) << src[i][1] << std::setw(15) << std::setprecision(4) << src[i][2];
-            std::cout << std::setw(15) << std::setprecision(4) << targ[i][0] << std::setw(15) << std::setprecision(4) << targ[i][1] << std::setw(15) << std::setprecision(4) << targ[i][2] << std::endl;
+            std::cerr << "Error opening file: " << file_path << std::endl;
+            return 0;
         }
-        std::cout << "----------------------------------------" << std::endl;
-    }
 
-    Eigen::Matrix<double, 3, 4> jacobian_wrt_quat(const Eigen::Vector4d &quat_v, const Eigen::Vector3d &p)
-    {
-        /* General function for calculation Jacobian wrt quaternion */
-        const double w = quat_v[0];
-        const Eigen::Vector3d v(quat_v[1], quat_v[2], quat_v[3]);
+        // Set the output precision and fixed format for Euler angles and translations
+        file << std::fixed << std::setprecision(5);
 
-        const Eigen::Matrix3d I = Eigen::Matrix3d::Identity();
+        // Write the table headers
+        if (file.tellp() == 0)
+        {
+            file << "Pose\t\t\t\t\troll\t\tpitch\t\tyaw\t\ttranslation_x\ttranslation_y\ttranslation_z\n";
+            file << "-----------------------------------------------------------------------------------------------------\n";
+        }
 
-        Eigen::Matrix<double, 3, 4> int_mat;
-        // quaternion solutions
-        int_mat.block<3, 1>(0, 0) = 2 * (w * p + v.cross(p));
-        int_mat.block<3, 3>(0, 1) = 2 * (v.transpose() * p * I + v * p.transpose() - p * v.transpose() - w * utils::skew_matrix(p));
+        // Iterate over each pose and save it to the file
+        for (size_t i = 0; i < poses.size(); ++i)
+        {
+            const auto &pose = poses[i];
 
-        return int_mat;
+            // Get the Euler angles from the pose
+            Eigen::Vector3d euler = utils::rmat_to_euler(pose.rotationMatrix());
+
+            // Write the pose index and pose values to the file
+            file << "Pose " << std::setw(2) << idx + i + 1 << ":\t";
+            file << std::setw(10) << euler[0] << "\t";
+            file << std::setw(10) << euler[1] << "\t";
+            file << std::setw(10) << euler[2] << "\t";
+            file << std::setw(15) << pose.translation()[0] << "\t";
+            file << std::setw(15) << pose.translation()[1] << "\t";
+            file << std::setw(15) << pose.translation()[2] << "\n";
+        }
+
+        file.close();
+        return idx + static_cast<int>(poses.size());
     }
 }
 
 namespace odometry
 {
 
-    utils::Vec3dVector EKF::pre_initialization(frame::LidarImuInit::Ptr &meas, bool init)
+    bool EKF::initialize_map(const frame::SensorData &data)
     {
-        // convert to vector3d points
-        original_points = utils::pointcloud2eigen(*(meas->processed_frame));
+        const auto downsampled_frame = icp_ptr->voxelize(data.lidar_data.pc);
+        auto &eigen_frame = std::get<1>(downsampled_frame); // store map_points.
 
-        // convert from lidar-world to imu-world frame.
-        utils::Vec3dVector eigen_frame = points_body_to_world(original_points);
+        std::move(eigen_frame.begin(), eigen_frame.end(), std::back_inserter(initial_frames));
 
-        // downsample map points.
-        utils::Vec3_Vec3Tuple downsampled_frame = icp_ptr->voxelize(eigen_frame);
+        // store some initial points.
+        if (static_cast<int>(initial_frames.size()) < init_points_req)
+            return false;
 
-        // downsampled version used in mapping source used to calculate points.
-        curr_downsampled_frame = std::get<1>(downsampled_frame); // this is what is used for mapping
-
-        // if map is empty return
-        if (init)
-            icp_ptr->update_map(curr_downsampled_frame, icp_ptr->init_guess);
-
-        return std::get<0>(downsampled_frame);
-    }
-
-    void EKF::initialize_map(frame::LidarImuInit::Ptr &meas)
-    {
-        const auto src = pre_initialization(meas, true);
+        // insert points into map
+        lidar_point_cloud = initial_frames;
+        update_map(initial_frames);
+        initial_frames.clear();
 
         init_map = true;
+
+        return true;
     }
 
     /*........................................... LIDAR H MATRIX MODEL ...................................................*/
-    template <typename StateType>
-    void EKF::h_model_lidar(StateType &state, dyn_share_modified<double> &data, frame::LidarImuInit::Ptr &meas)
+    void EKF::outlier_removal(
+        const std::vector<MapPoint> &targ, const std::vector<int> &returned_idxs,
+        std::vector<MapPoint> &targ_calc, std::vector<int> &tracked_idx)
     {
-        auto source = pre_initialization(meas);
-        utils::Vec3dVector orig_points_copy(original_points.begin(), original_points.end());
-        original_points.clear();
-        utils::Vec3dVector src, targ;
-        double th;
-        {
-            // Get motion prediction and adaptive threshold
-            const double sigma = icp_ptr->get_adaptive_threshold();
-            th = sigma / 3.0;
+        const int targ_size = targ.size();
+        targ_calc.clear();
+        tracked_idx.clear();
 
-            // for each downsampled point find corresponding closest point from the map
-            const auto result = icp_ptr->local_map.get_correspondences(source, 3.0 * sigma);
-            const utils::Vec3dVector &src_temp = std::get<0>(result);
-            const utils::Vec3dVector &targ_temp = std::get<1>(result);
+        std::vector<double> distance;
+        distance.reserve(targ_size);
 
-            std::cout << "Pre filtered points" << std::endl;
-            printMatchedPoints(src_temp, targ_temp);
-            int idx = 0;
-            for (const auto &targ_p : targ_temp)
+        std::transform(
+            returned_idxs.begin(), returned_idxs.end(),
+            std::back_inserter(distance),
+            [&](const auto &idx)
             {
-                if (targ_p != Eigen::Vector3d::Zero())
-                {
-                    targ.push_back(std::move(targ_temp[idx]));
-                    src.push_back(std::move(src_temp[idx]));
-                    original_points.push_back(std::move(orig_points_copy[idx]));
-                }
-                idx++;
-            }
-        }
+                return (*tracker.points_imu_world_coord[idx] - targ[idx]).squaredNorm();
+            });
 
-        if (targ.empty())
+        // {lower, higher, iqr_val}
+        const auto iqr_vec = utils::IQR(distance);
+        double mad = utils::calculate_mad(distance);
+        double data_median = utils::calculate_median(distance, 0, static_cast<size_t>(distance.size() - 1));
+
+        double low_bound = iqr_vec[0] - IQR_TUCHEY * iqr_vec[2];
+        double high_bound = iqr_vec[1] + IQR_TUCHEY * iqr_vec[2];
+
+        auto filter_func = [&](size_t i)
+        {
+            const double dist = distance[i];
+            const double dist_diff = std::abs(dist - data_median);
+            return (dist >= low_bound && dist <= high_bound && dist_diff < MAD_THRESH_VAL * mad);
+        };
+
+        tracked_idx.reserve(targ_size);
+        targ_calc.reserve(targ_size);
+
+        for (size_t i = 0; i < targ_size; i++)
+        {
+            if (!filter_func(i))
+                continue;
+
+            tracked_idx.push_back(returned_idxs[i]);
+            targ_calc.emplace_back(std::move(targ[i]));
+        }
+    }
+
+    bool EKF::h_model_lidar(dyn_share_modified<double> &data)
+    {
+        // Find closest correspondence. {index to source, vector of closest points}
+        const auto &local_map = icp_ptr->local_map;
+        const auto result = local_map->get_correspondences(tracker.points_imu_world_coord, 3.0 * sigma, num_corresp);
+        tracked_idx.clear();
+
+        const auto &returned_idxs = std::get<0>(result);
+        const auto &targ = std::get<1>(result);
+        const int targ_size = targ.size();
+
+        PointsVector targ_calc = targ;
+        tracked_idx = returned_idxs;
+        if (targ_size > 4 && use_outliers)
+            outlier_removal(targ, returned_idxs, targ_calc, tracked_idx);
+
+        if (targ_calc.empty())
         {
             data.valid = false;
-            return;
+            return false;
         }
 
-        std::cout << "MATCHED POINTS COMPARISON" << std::endl;
-        printMatchedPoints(src, targ);
+        PointsVector source;
+        std::transform(
+            tracked_idx.begin(), tracked_idx.end(),
+            std::back_inserter(source),
+            [&](const auto &val)
+            {
+                return *tracker.points_imu_world_coord[val];
+            });
 
-        const int matched_size = targ.size();
+        if (!tracker.first_matched)
+        {
+            tracker.matched[0] = {source, targ_calc};
+            tracker.first_matched = true;
+        }
+        else
+            tracker.matched[1] = {source, targ_calc};
+
+        if (print_matrices)
+        {
+            utils::printMatchedPoints(source, targ_calc);
+
+            // Print results after distance to Map
+            std::cout << "Results after distance to Map" << std::endl;
+            std::cout << "Total points with matched points: " << targ_size << std::endl;
+            if (targ_calc.size() > 4)
+                std::cout << "Total points post outlier removal: " << targ_calc.size() << std::endl;
+            else
+                std::cout << "Not enough points [" << targ_calc.size() << "] to trim" << std::endl;
+        }
+
+        const int matched_size = targ_calc.size();
+        data.h_x = Eigen::MatrixXd::Zero(3 * matched_size, NominalState::h_matrix_col);
+        data.weight.resize(3 * matched_size);
+        data.z.resize(3 * matched_size);
         data.M_noise = laser_point_cov;
 
-        // h_x matrix arrangement: imw_world_pos, imw_world_ori, lidar_imu_pos, lidar_imu_ori
-        data.h_x = Eigen::MatrixXd::Zero(3 * matched_size, h_matrix_col);
-        // data.z.resize(matched_size);
-        data.z.resize(3 * matched_size);
         tbb::parallel_for(
-            tbb::blocked_range<std::size_t>(0, src.size()),
+            tbb::blocked_range<std::size_t>(0, matched_size),
             [&](const tbb::blocked_range<std::size_t> &r)
             {
                 for (std::size_t i = r.begin(); i < r.end(); ++i)
                 {
-                    const auto &point = src[i]; // This point has been transformed
-                    calculate_h_lidar<StateType>(data, i, state, point);
-                    // residual computation
-                    Eigen::Vector3d residual = point - targ[i];
-                    Eigen::Vector3d weight_v(
-                        weight(residual.x(), th), weight(residual.y(), th), weight(residual.z(), th));
-                    // data.z.segment(3 * i, 3) = weight(residual.squaredNorm(), th) * residual;
-                    data.z.segment(3 * i, 3) = residual.cwiseProduct(weight_v);
+                    calculate_h_lidar(data, i);
+                    Eigen::Vector3d residual = (*tracker.points_imu_world_coord[tracked_idx[i]] - targ_calc[i]).point;
+
+                    std::lock_guard<std::mutex> lock(data.mutex);
+                    data.z.segment(3 * i, 3) = -residual;
+
+                    data.weight(3 * i) = weight(residual.x() * residual.x(), threshold);
+                    data.weight(3 * i + 1) = weight(residual.y() * residual.y(), threshold);
+                    data.weight(3 * i + 2) = weight(residual.z() * residual.z(), threshold);
                 }
             });
+
+        return true;
     }
 
-    template <typename State>
-    void EKF::calculate_h_lidar(dyn_share_modified<double> &data, int idx, const State &m, const Eigen::Vector3d &point_in_imu_frame)
+    void EKF::calculate_h_lidar(dyn_share_modified<double> &data, int idx)
     {
-        /*
-         * General observation equation: y = q * [point_in_imu_frame] * q_c + t - p_w
-         * point_imu_world_frame: q_L_I * p_l * q_L_I_c + t_L_I
-         * q_c = q conjugate
-         */
+        std::lock_guard<std::mutex> lock(data.mutex);
 
-        // location in h_matrix
+        /*
+         * Calculate Jacobian of point-to-point icp equation: q x [point_in_imu_frame] x q_c + t - p_w
+         * point_imu_frame: q_b x p_l x q_b* + t_b
+         */
         const int h_idx = 3 * idx;
+        const Eigen::Vector3d &point_in_imu_frame = tracker.points_imu_coord[tracked_idx[idx]]->point;
 
-        /* ........................... H-MATRIX CALCULATION .....................................*/
-        const Eigen::Matrix3d I = Eigen::Matrix3d::Identity();
+        // Case 1: dy/dt
+        data.h_x.block<3, 3>(h_idx, 0) = Eigen::Matrix3d::Identity();
 
-        /*
-         * Case 1: dy/dt && dy/dq
-         * dy/dt => only t -> Identity matrix
-         * dy/dq => Jacobian of rotation [q*[point_in_imu_frame]*q_c] wrt quaternion
-         */
-
-        data.h_x.block<3, 3>(h_idx, 0) = I;
-        data.h_x.block<3, 4>(h_idx, 3) = jacobian_wrt_quat(m.rot, point_in_imu_frame);
+        // Case 2: dy/dq => Jacobian of equation with respect to quaternion
+        data.h_x.block<3, 4>(h_idx, 3) = utils::jacobian_wrt_quat(state->nominal_state.rot, point_in_imu_frame);
 
         if (est_extrinsic)
         {
-            /*
-             * Case 2:
-             * To find the derivative with respect to q_L_I or t_L_I we use chain rule notation.
-             * Let A = q_L_I*p_l*q_L_I* + t_L_I
-             * dy/d(q_L_I) = dy/dA * dA/d(q_L_I)
-             * dy/d(t_L_I) = dy/dA * dA/d(t_L_I)
-             */
-            const Eigen::Vector4d &imu_rot = m.rot;
-            const double w = imu_rot[0];
-            const Eigen::Vector3d v(imu_rot[1], imu_rot[2], imu_rot[3]);
+            // Case 3: dy/dt_b => Jacobian of equation with respect to lidar imu translation
+            data.h_x.block<3, 3>(h_idx, 7) = utils::vec4d_to_rmat(state->nominal_state.rot);
 
-            // calculating dy/dA
-            Eigen::Matrix3d dy_da = w * w * I + 2 * (w * utils::skew_matrix(v) + v * v.transpose()) - v.squaredNorm() * I;
-
-            // dA/d(t_L_I) is an Identity matrix
-            data.h_x.block<3, 3>(h_idx, 7) = dy_da * I;
-
-            // dA/d(q_L_I) = Jacobian of rotation wrt quaternion
-            data.h_x.block<3, 4>(idx, 10) = jacobian_wrt_quat(m.offset_R_L_I, original_points[idx]);
+            // Case 4: dy/dq_b => Jacobian of equation with respect to lidar imu orientation
+            const Eigen::Vector3d &point_in_lidar_frame = tracker.orig_point_lidar[tracked_idx[idx]]->point;
+            data.h_x.block<3, 4>(h_idx, 10) = data.h_x.block<3, 3>(h_idx, 7) * utils::jacobian_wrt_quat(state->nominal_state.offset_R_L_I, point_in_lidar_frame);
         }
     }
 
-    void EKF::h_model_input(dyn_share_modified<double> &data, frame::LidarImuInit::Ptr &meas)
-    {
-        h_model_lidar<StateInput>(inp_state, data, meas);
-    }
-
-    void EKF::h_model_output(dyn_share_modified<double> &data, frame::LidarImuInit::Ptr &meas)
-    {
-        h_model_lidar<StateOutput>(out_state, data, meas);
-    }
-
-    template <int H_Dim>
-    bool EKF::update_h_model(frame::LidarImuInit::Ptr &meas)
+    bool EKF::update_h_model(const frame::SensorData &data)
     {
         dyn_share_modified<double> dyn_share;
-        bool check = H_Dim == STATE_IN_DIM;
+        reset_parameters();
+        tracker.clear();
+        /*.............................. Main function .................................*/
+        // voxelize and transform points
+        const auto downsampled_frame = icp_ptr->voxelize(data.lidar_data.pc);
 
-        auto h_model = [&](auto &data, auto &meas)
-        {
-            if (check)
-                return h_model_input(data, meas);
-            else
-                return h_model_output(data, meas);
-        };
+        // points used for mapping.
+        tracker.map_points = std::get<1>(downsampled_frame);
 
-        // iterative loop
-        const int max_iter = icp_ptr->config.icp_max_iteration;
-        const double max_thresh = icp_ptr->config.estimation_threshold;
+        // identifies what we use for pose estimation.
+        tracker.orig_point_lidar = std::get<0>(downsampled_frame);
 
-        for (int idx = 0; idx < max_iter; idx++)
+        // reference for lidar points later
+        lidar_point_cloud = tracker.map_points;
+        tracker.initial_transform(icp_ptr->init_guess);
+
+        // Chamber of ICP secrets
+        for (int idx = 0; idx < max_icp_iter; ++idx)
         {
             dyn_share.valid = true;
-
-            h_model(dyn_share, meas);
-
-            if (!dyn_share.valid)
+            if (!h_model_lidar(dyn_share))
+            {
+                if (!dyn_share.valid)
+                {
+                    // if we can't find matching targets and it's the first loop
+                    if (idx == 0)
+                    {
+                        if (verbose)
+                            std::cout << "Adding new points to the map!" << std::endl;
+                        update_map(tracker.map_points);
+                    }
+                    else if (verbose)
+                        std::cout << "Invalid dyn_share" << std::endl;
+                }
                 return false;
-
-            Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic> z = dyn_share.z;
-            Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic> h_x = dyn_share.h_x;
-            printEigenMatrix(h_x, "h_x_matrix");
-            Eigen::MatrixXd iter_props;
-            {
-                if (check)
-                    iter_props = inp_state.iterative_properties<STATE_IN_DIM>();
-                else
-                    iter_props = out_state.iterative_properties<INNER_DIM>();
-            }
-            printEigenMatrix(iter_props, "iter_props_table");
-            double m_noise = dyn_share.M_noise;
-            const int dof_Measurement = h_x.rows();
-
-            Eigen::MatrixXd HPHT, K;
-            Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic> PHT;
-            {
-                PHT = iter_props * h_x.transpose();
-
-                if (check)
-                    HPHT = h_x * inp_state.col_iterative_properties<STATE_IN_DIM>(PHT);
-                else
-                    HPHT = h_x * out_state.col_iterative_properties<INNER_DIM>(PHT);
-
-                for (int m = 0; m < dof_Measurement; m++)
-                    HPHT(m, m) += m_noise;
-
-                K = PHT * HPHT.inverse();
-                printEigenMatrix(K, "Gain");
             }
 
-            dyn_share.converge = true;
-            double pos_norm;
-            printEigenMatrix(z, "z");
-            if (check)
-            {
-                Eigen::Matrix<double, STATE_IN_DIM, 1> dx = K * z;
-                printEigenMatrix(dx, "dx");
+            dx_norm = align_points(dyn_share);
+            tracker.transform_points(state);
 
-                inp_state += dx;
-                inp_state.P = inp_state.P + K * h_x * iter_props.transpose();
-                pos_norm = dx.segment(POS, 3).norm();
-            }
-            else
+            if (dx_norm <= estimation_threshold)
             {
-                Eigen::Matrix<double, INNER_DIM, 1> dx = K * z;
-                printEigenMatrix(dx, "dx");
-                out_state += dx;
-                out_state.P = out_state.P + K * h_x * iter_props.transpose();
-                pos_norm = dx.segment(POS, 3).norm();
-            }
-            std::cout << "Pos_norm: " << pos_norm << std::endl;
-            // add rotation criteria from fast-lio2
-            if (pos_norm < max_thresh)
+                dyn_share.converge = true;
                 break;
+            }
         }
+
+        // update the map
+        update_map(tracker.map_points);
 
         return true;
     }
 
-    bool EKF::update_h_model_lidar_output(frame::LidarImuInit::Ptr &meas, bool input)
+    double EKF::align_points(dyn_share_modified<double> &dyn_share)
     {
-        if (input)
-            return update_h_model<STATE_IN_DIM>(meas);
+        Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic> z = dyn_share.z;
+        Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic> h_x = dyn_share.h_x;
+        Eigen::MatrixXd noise = Eigen::MatrixXd::Identity(z.rows(), z.rows()) * dyn_share.M_noise * state->get_noise_scale();
 
-        return update_h_model<INNER_DIM>(meas);
+        // outlier weights applied
+        h_x = dyn_share.weight.asDiagonal() * h_x * state->lidar_ts_jacobian();
+        z = dyn_share.weight.asDiagonal() * z;
+
+        return kf_propagation(h_x, state->P_measurement_props_lidar(), z, noise, false);
     }
 
-    /*.................................... IMU OUTPUT .............................................................*/
-    bool EKF::update_h_model_IMU_output(frame::LidarImuInit::Ptr &meas)
-    {
-
-        dyn_share_modified<double> dyn_share;
-        int max_iter = 1;
-        for (int idx = 0; idx < max_iter; idx++)
-        {
-            dyn_share.valid = true;
-            h_model_IMU_output(dyn_share, meas);
-
-            Eigen::Matrix<double, 6, 1> z = dyn_share.z_IMU;
-            Eigen::Matrix<double, INNER_DIM, 6> PHT;
-            Eigen::Matrix<double, 6, INNER_DIM> HP;
-            Eigen::Matrix<double, 6, 6> HPHT;
-            PHT.setZero();
-            HP.setZero();
-            HPHT.setZero();
-
-            for (int i = 0; i < 3; i++)
-            {
-                PHT.col(i) = out_state.P.col(BGA + i) + out_state.P.col(IMU_GYRO + i);
-                PHT.col(i + 3) = out_state.P.col(BAA + i) + out_state.P.col(IMU_ACC + i);
-
-                HP.row(i) = out_state.P.row(BGA + i) + out_state.P.row(IMU_GYRO + i);
-                HP.row(i + 3) = out_state.P.row(BAA + i) + out_state.P.row(IMU_ACC + i);
-            }
-
-            for (int i = 0; i < 3; i++)
-            {
-                HPHT.col(i) = HP.col(BGA + i) + HP.col(IMU_GYRO + i);
-                HPHT.col(i + 3) = HP.col(BAA + i) + HP.col(IMU_ACC + i);
-            }
-
-            for (int i = 0; i < 6; i++)
-                HPHT(i, i) = dyn_share.R_IMU(i);
-
-            Eigen::Matrix<double, INNER_DIM, 6> K = PHT * HPHT.inverse();
-            Eigen::Matrix<double, INNER_DIM, 1> dx = K * z;
-
-            out_state.P -= K * HP;
-            out_state += dx;
-        }
-
-        return true;
-    }
-
-    void EKF::h_model_IMU_output(dyn_share_modified<double> &data, const frame::LidarImuInit::Ptr &meas)
+    /*.................................... IMU OUTPUT ....................................*/
+    void EKF::h_model_IMU_output(dyn_share_modified<double> &data, double gravity_sf)
     {
         constexpr int imu_data_size = 6;
         std::array<bool, imu_data_size> satu_check = {};
 
         const double gyro_satu_thresh = 0.99 * satu_gyro;
         const double acc_satu_thresh = 0.99 * satu_acc;
-        const bool b_acc_satu_check = acc_satu_thresh > 0;
-        const bool b_gyro_satu_check = gyro_satu_thresh > 0;
+        const bool b_acc_satu_check = acc_satu_thresh > 0.0;
+        const bool b_gyro_satu_check = gyro_satu_thresh > 0.0;
 
-        const StateOutput &s = out_state;
-        Eigen::Vector3d z_omg = ang_vel_read - s.imu_gyro - s.gyro_bias;
-        // linear acc already scaled by gravity in update_imu_reading function
-        Eigen::Vector3d z_acc = acc_vel_read - s.mult_bias.asDiagonal() * s.imu_acc - s.acc_bias;
+        // compute residual gyro
+        data.z_IMU.block<3, 1>(0, 0) = (ang_vel_read - state->nominal_state.gyro_bias) - state->nominal_state.imu_gyro;
 
-        const double h_size = imu_data_size / 2;
+        // compute residual acc
+        Eigen::Matrix3d mult_bias = state->nominal_state.mult_bias.asDiagonal();
+        Eigen::Matrix3d mult_bias_s = mult_bias.inverse();
+        Eigen::Vector3d scaled_acc_vel = acc_vel_read;
+        data.z_IMU.block<3, 1>(3, 0) = mult_bias * scaled_acc_vel - state->nominal_state.acc_bias - state->nominal_state.imu_acc;
+
+        if (print_matrices)
+            print_imu(state);
+
+        // jacobian
+        data.h_x = Eigen::MatrixXd::Zero(h_imu_jacob_row, h_imu_jacob_col);
+        {
+            // bomg
+            data.h_x.block(0, 0, 3, 3).setIdentity();
+
+            // Igyro
+            data.h_x.block(0, 9, 3, 3).setIdentity();
+
+            // bacc
+            data.h_x.block(3, 3, 3, 3) = mult_bias_s;
+
+            // for bat
+            Eigen::Matrix3d J = Eigen::Matrix3d::Zero();
+            for (int i = 0; i < 3; ++i)
+                J(i, i) = -1 / (mult_bias_s(i, i) * mult_bias_s(i, i));
+            data.h_x.block(3, 6, 3, 3) = J * (state->nominal_state.imu_acc + state->nominal_state.acc_bias).asDiagonal();
+
+            // Iacc
+            data.h_x.block(3, 12, 3, 3) = mult_bias_s;
+        }
+
+        const int h_size = imu_data_size / 2;
         for (int i = 0; i < h_size; ++i)
         {
-            const double &gyro_read = ang_vel_read(i);
-            if (b_gyro_satu_check && std::fabs(gyro_read) >= gyro_satu_thresh)
+            const double gyro_read = std::fabs(ang_vel_read(i));
+            if (b_gyro_satu_check && gyro_read >= gyro_satu_thresh)
             {
                 satu_check[i] = true;
                 data.z_IMU(i) = 0.0;
             }
-            else
-                data.z_IMU(i) = z_omg(i);
 
-            const double &acc_read = acc_vel_read(i);
-            if (b_acc_satu_check && std::fabs(acc_read) >= acc_satu_thresh)
+            const double acc_read = std::fabs(acc_vel_read(i));
+            if (b_acc_satu_check && acc_read >= acc_satu_thresh)
             {
                 satu_check[i + h_size] = true;
                 data.z_IMU(i + h_size) = 0.0;
             }
-            else
-                data.z_IMU(i + h_size) = z_acc(i);
         }
 
-        (data.R_IMU << s.Q.block(Q_GYRO, Q_GYRO, 3, 3).diagonal(), s.Q.block(Q_ACC, Q_ACC, 3, 3).diagonal()).finished();
+        (data.R_IMU << imu_gyro_meas_cov, imu_gyro_meas_cov, imu_gyro_meas_cov, imu_acc_meas_cov, imu_acc_meas_cov, imu_acc_meas_cov).finished();
         std::copy(satu_check.begin(), satu_check.end(), data.satu_check);
     }
 
-    std::tuple<Eigen::Vector3d, Eigen::Quaterniond> EKF::update_map()
+    void EKF::print_imu(const State::Ptr &state)
     {
-        Eigen::Vector3d translation;
-        Eigen::Quaterniond quat;
-        if (!use_imu_as_input)
-        {
-            translation = out_state.pos;
-            quat = Eigen::Quaterniond(out_state.rot);
-        }
-        else
-        {
-            translation = inp_state.pos;
-            quat = Eigen::Quaterniond(inp_state.rot);
-        }
+        Eigen::Matrix3d mult_bias = state->nominal_state.mult_bias.asDiagonal();
+        Eigen::Matrix3d mult_bias_s = mult_bias.inverse();
 
-        Sophus::SE3d pose(quat, translation);
-        icp_ptr->update_map(curr_downsampled_frame, pose);
-        std::cout << "Current predicted pose:\n"
-                  << pose.matrix() << std::endl;
-        return {translation, quat};
+        std::cout << std::left << std::setw(20) << "-----------------------------------------------------------\n";
+        std::cout << std::left << std::setw(20) << "Measured Imu:\n";
+        std::cout << std::left << std::setw(10) << "Gyro: " << ang_vel_read.transpose() << "\n";
+        std::cout << std::left << std::setw(10) << "Acc: " << acc_vel_read.transpose() << "\n";
+        std::cout << std::left << std::setw(20) << "-----------------------------------------------------------\n";
+
+        std::cout << std::left << std::setw(20) << "Estimated Imu:\n";
+        std::cout << std::left << std::setw(10) << "Gyro: " << state->nominal_state.imu_gyro.transpose() << "\n";
+        std::cout << std::left << std::setw(10) << "Acc: " << state->nominal_state.imu_acc.transpose() << "\n";
+        std::cout << std::left << std::setw(20) << "-----------------------------------------------------------\n";
+
+        std::cout << std::left << std::setw(20) << "Bias Estimation\n";
+        std::cout << std::left << std::setw(20) << "-----------------------------------------------------------\n";
+        std::cout << std::left << std::setw(10) << "Gyro bias: " << state->nominal_state.gyro_bias.transpose() << "\n";
+        std::cout << std::left << std::setw(10) << "Acc bias: " << state->nominal_state.acc_bias.transpose() << "\n";
+        std::cout << std::left << std::setw(10) << "Mult bias: " << state->nominal_state.mult_bias.transpose() << "\n";
+        std::cout << std::left << std::setw(20) << "-----------------------------------------------------------\n";
+
+        std::cout << std::left << std::setw(20) << "Combined\n";
+        Eigen::Vector3d acc_comb = mult_bias_s * (state->nominal_state.imu_acc + state->nominal_state.acc_bias);
+        Eigen::Vector3d gyro_comb = state->nominal_state.imu_gyro + state->nominal_state.gyro_bias;
+        std::cout << std::left << std::setw(20) << "-----------------------------------------------------------\n";
+        std::cout << std::left << std::setw(10) << "Gyro Combined: " << gyro_comb.transpose() << "\n";
+        std::cout << std::left << std::setw(10) << "Acc Combined: " << acc_comb.transpose() << "\n";
+        std::cout << std::left << std::setw(20) << "-----------------------------------------------------------\n";
     }
 
-    utils::Vec3dVector EKF::points_body_to_world(const utils::Vec3dVector &points)
+    bool EKF::update_h_model_IMU_output(double gravity_sf)
     {
-        utils::Vec3dVector world;
-        const size_t size = points.size();
-        world.resize(size);
+        dyn_share_modified<double> dyn_share;
+        double iter_count = 0;
+        double dx_n = 0;
+        for (int idx = 0; idx < max_imu_iter; idx++)
+        {
+            dyn_share.valid = true;
+            h_model_IMU_output(dyn_share, gravity_sf);
 
-        tbb::parallel_for(
-            std::size_t(0), size,
-            [&](std::size_t idx)
+            Eigen::Matrix<double, 6, 1> z = dyn_share.z_IMU;
+            Eigen::MatrixXd iter_props = state->P_measurement_props_imu();
+
+            Eigen::MatrixXd noise = dyn_share.R_IMU.asDiagonal() * state->get_noise_scale();
+
+            Eigen::MatrixXd h_x = dyn_share.h_x * state->imu_ts_jacobian();
+
+            // remove effects from saturated columns
+            Eigen::MatrixXd satu = Eigen::MatrixXd::Identity(h_imu_jacob_row, h_imu_jacob_row);
             {
-                auto &world_point = world[idx];
-                if (est_extrinsic)
+                for (int i = 0; i < h_imu_jacob_row; i++)
                 {
-                    if (!use_imu_as_input)
-                        world_point = out_state.rot_m() * (out_state.L_I_rot_m() * points[idx] + out_state.offset_T_L_I) + out_state.pos;
-                    else
-                        world_point = inp_state.rot_m() * (inp_state.L_I_rot_m() * points[idx] + inp_state.offset_T_L_I) + inp_state.pos;
+                    // ignore values that are saturated
+                    if (dyn_share.satu_check[i])
+                        satu(i, i) = 0;
                 }
-                else
-                {
-                    if (!use_imu_as_input)
-                        world_point = out_state.rot_m() * (Lidar_R_wrt_IMU * points[idx] + Lidar_T_wrt_IMU) + out_state.pos;
-                    else
-                        world_point = inp_state.rot_m() * (Lidar_R_wrt_IMU * points[idx] + Lidar_T_wrt_IMU) + inp_state.pos;
-                }
-            });
 
-        return world;
+                h_x.block(0, 9, 6, 6) *= satu;
+                iter_props.block(0, 9, 6, 6) *= satu;
+            }
+
+            if (print_matrices)
+            {
+                utils::printEigenMatrix(h_x, "h_x");
+                utils::printEigenMatrix(iter_props, "iter_props");
+            }
+
+            dx_n = kf_propagation(h_x, iter_props, z, noise, true);
+            iter_count = idx;
+
+            if (dx_n < estimation_threshold)
+            {
+                dyn_share.converge = true;
+                break;
+            }
+        }
+
+        tracker.update_pose(state);
+        icp_ptr->update_pose(tracker.T_I_W);
+
+        if (verbose)
+        {
+            if (dyn_share.converge)
+                std::cout << "Number of iterations till convergence: " << iter_count << std::endl;
+            else
+                std::cout << "Max iterations reached " << std::endl;
+
+            if (!print_matrices)
+                print_imu(state);
+
+            std::cout << "Dx_norm: " << dx_n << std::endl;
+            tracker.curr_info();
+        }
+
+        return true;
     }
 
-    Sophus::SE3d EKF::get_lidar_pos()
+    /*.................................... Kalman Filter Propagation ....................................*/
+    double EKF::kf_propagation(const Eigen::MatrixXd &h_x, const Eigen::MatrixXd &iter_props, const Eigen::Matrix<double, -1, 1> &z, const Eigen::MatrixXd &noise, bool is_imu)
     {
-        std::cout << "Attempting to get lidar information." << std::endl;
-        Eigen::Quaterniond rot_q;
-        // current position
-        Sophus::SE3d I_W_pose;
+        Eigen::MatrixXd HPHT, K, PHT;
+        HPHT.setZero();
+        K.setZero();
+        PHT.setZero();
         {
-            std::cout << "Attempting to get imu world pose." << std::endl;
-            if (!use_imu_as_input)
-            {
-
-                rot_q = Eigen::Quaterniond(out_state.rot);
-                std::cout << "rotation extracted." << std::endl;
-                I_W_pose = Sophus::SE3d(rot_q, out_state.pos);
-            }
+            PHT = iter_props * h_x.transpose();
+            if (!is_imu)
+                HPHT = h_x * state->row_properties_lidar(PHT);
             else
-            {
-                std::cout << inp_state.rot.transpose() << std::endl;
-                rot_q = Eigen::Quaterniond(inp_state.rot);
-                std::cout << "rotation extracted." << std::endl;
-                I_W_pose = Sophus::SE3d(rot_q, inp_state.pos);
-            }
+                HPHT = h_x * state->row_properties_imu(PHT);
+
+            K = PHT * (HPHT + noise).inverse();
         }
-        std::cout << "imu pose extracted." << std::endl;
-        Sophus::SE3d L_I_pose;
-        if (est_extrinsic)
+
+        // section updates the state, covariance and resets.
+        Eigen::Matrix<double, Eigen::Dynamic, 1> dx = K * z;
         {
+            *state += dx;
+            state->P = state->P - K * h_x * iter_props.transpose();
 
-            if (!use_imu_as_input)
-            {
-                rot_q = Eigen::Quaterniond(out_state.offset_R_L_I);
-                L_I_pose = Sophus::SE3d(rot_q, out_state.offset_T_L_I);
-            }
-            else
-            {
-                rot_q = Eigen::Quaterniond(inp_state.offset_R_L_I);
-                L_I_pose = Sophus::SE3d(rot_q, inp_state.offset_T_L_I);
-            }
+            // Reset covariance matrix
+            state->update_G(
+                dx.segment(ErrorState::ORI, 3),
+                dx.segment(ErrorState::ORI_LIDAR_IMU, 3));
         }
+
+        // termination criteria
+        double dx_norm = 0.0;
+        if (!is_imu)
+            dx_norm = dx.segment(ErrorState::ORI, 3).norm() + dx.segment(ErrorState::ORI_LIDAR_IMU, 3).norm();
         else
+            dx_norm = dx.segment(ErrorState::IMU_ACC, 3).norm() + dx.segment(ErrorState::IMU_GYRO, 3).norm();
+
+        // print stuff
+        if (print_matrices)
         {
-            L_I_pose = Sophus::SE3d(utils::rmat2quat(Lidar_R_wrt_IMU), Lidar_T_wrt_IMU);
+            std::cout << "......... IMU MATRICES ............" << std::endl;
+            utils::printEigenMatrix(z, "z");
+            utils::printEigenMatrix(h_x, "h_x");
+            utils::printEigenMatrix(PHT, "PHT");
+            utils::printEigenMatrix(HPHT, "HPHT");
+            utils::printEigenMatrix(K, "gain");
+            utils::printEigenMatrix(dx, "dx");
+            state->print_nominal_attrbiutes();
         }
 
-        Sophus::SE3d pose = I_W_pose * L_I_pose;
-
-        return pose;
+        // returns difference
+        return dx_norm;
     }
 
-    double EKF::position_norm()
+    void EKF::predict(double dt, bool predict_state, bool prop_cov)
     {
-        Sophus::SE3d pose = get_lidar_pos();
-
-        return pose.translation().norm();
-    }
-
-    bool EKF::initialize_sensors(
-        double odom_freq, double timestamp, bool &enabled,
-        double &timediff_imu_wrt_lidar, const double &move_start_time)
-    {
-        // get_lidar information
-        std::cout << "in initialize sensors" << std::endl;
-        Sophus::SE3d l_pose = get_lidar_pos();
-        Eigen::Quaterniond quat = l_pose.unit_quaternion();
-        const Eigen::Matrix3d rot = utils::quat2rmat(quat);
-        std::cout << "post lidar orientation data extracted" << std::endl;
-        Eigen::Vector3d omega_used;
-        if (!use_imu_as_input)
-        {
-            omega_used = inp_state.gyro_bias;
-            sensor_init->push_Lidar_CalibState(rot, inp_state.gyro_bias, inp_state.vel, timestamp);
-        }
+        if (use_imu_as_input)
+            state->predict(ang_vel_read, acc_vel_read, dt, predict_state, prop_cov);
         else
-        {
-            omega_used = out_state.gyro_bias;
-            sensor_init->push_Lidar_CalibState(rot, out_state.gyro_bias, out_state.vel, timestamp);
-        }
-
-        // data accumulation appraisal
-        std::cout << "Accumulating data" << std::endl;
-        if (sensor_init->data_sufficiency_assess(Jaco_rot, frame_num, omega_used, odom_freq))
-        {
-            std::cout << "Enough data accumulated" << std::endl;
-            sensor_init->LI_Initialization(odom_freq, timediff_imu_wrt_lidar, move_start_time);
-            data_accum_finished = true;
-
-            if (!use_imu_as_input)
-            {
-                Eigen::Quaterniond rot_q = utils::rmat2quat(sensor_init->get_R_LI());
-                inp_state.offset_R_L_I = rot_q.coeffs();
-                inp_state.offset_T_L_I = sensor_init->get_T_LI();
-                inp_state.grav = sensor_init->get_Grav_L0();
-                inp_state.gyro_bias = sensor_init->get_gyro_bias();
-                inp_state.acc_bias = sensor_init->get_acc_bias();
-                inp_state.mult_bias = sensor_init->get_mult_bias();
-            }
-            else
-            {
-                Eigen::Quaterniond rot_q = utils::rmat2quat(sensor_init->get_R_LI());
-                out_state.offset_R_L_I = rot_q.coeffs();
-                out_state.offset_T_L_I = sensor_init->get_T_LI();
-                out_state.grav = sensor_init->get_Grav_L0();
-                out_state.gyro_bias = sensor_init->get_gyro_bias();
-                out_state.acc_bias = sensor_init->get_acc_bias();
-                out_state.mult_bias = sensor_init->get_mult_bias();
-            }
-
-            timediff_imu_wrt_lidar = sensor_init->get_total_time_lag();
-
-            std::cout << "Initialization result:" << std::endl;
-        }
-
-        return data_accum_finished;
+            state->predict(zero, zero, dt, predict_state, prop_cov);
     }
 
+    void EKF::pose_trail_tracker()
+    {
+        if (key_poses.size() >= frames_to_keep)
+        {
+            // dump to log file
+            key_tracker = save_pose_to_log(key_poses, pose_storage, key_tracker);
+            if (static_cast<int>(key_poses.size()) > 150)
+                key_poses.erase(key_poses.begin(), key_poses.end() - 100);
+
+            icp_ptr->reset_poses(key_poses);
+            key_poses.clear();
+        }
+
+        // keep key poses
+        key_poses.emplace_back(icp_ptr->poses_().back());
+
+        // keep main poses
+        if (icp_ptr->poses_().size() >= frames_to_keep)
+        {
+            if (store_all)
+                all_tracker = save_pose_to_log(icp_ptr->poses_(), all_pose_storage, all_tracker);
+
+            icp_ptr->reset_poses(key_poses);
+        }
+    }
+
+    void EKF::update_map(PointsPtrVector &points)
+    {
+        tracker.update_pose(state);
+        utils::transform_points(tracker.T_total, points);
+        icp_ptr->update_map(points, tracker.T_I_W, false);
+
+        if (verbose)
+        {
+            std::cout << "Dx norm: " << dx_norm << std::endl;
+            tracker.print_match_info();
+            tracker.curr_info();
+        }
+
+        tracker.clear();
+    }
 }

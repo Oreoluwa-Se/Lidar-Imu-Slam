@@ -3,7 +3,7 @@ project(limu)
 
 ## Compile as C++11, supported in ROS Kinetic and newer
 add_compile_options(-std=c++14 -O3 -pthread)
-# set(CMAKE_BUILD_TYPE Release) 
+set(CMAKE_BUILD_TYPE Release) 
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
@@ -20,6 +20,7 @@ find_package(catkin REQUIRED COMPONENTS
   tf2_ros
 )
 
+find_package(yaml-cpp REQUIRED)
 find_package(PCL 1.8 REQUIRED)
 find_package(Ceres REQUIRED)
 find_package(TBB REQUIRED)
@@ -89,6 +90,7 @@ target_link_libraries(
 	${TBB_LIBRARIES}
 	fmt::fmt
 	robin_map
+	yaml-cpp
 )
   
 ## System dependencies are found with CMake's conventions

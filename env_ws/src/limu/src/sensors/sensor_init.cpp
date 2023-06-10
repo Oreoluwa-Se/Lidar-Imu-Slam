@@ -153,7 +153,7 @@ void SensorInit::normalize_acc(std::deque<CalibState> &signal_in)
 
     for (int i = 0; i < signal_in.size(); i++)
     {
-        signal_in[i].linear_acc = signal_in[i].linear_acc / mean_acc.norm() * gravity;
+        signal_in[i].linear_acc = signal_in[i].linear_acc / mean_acc.norm() * 9.81;
     }
 }
 
@@ -515,7 +515,7 @@ void SensorInit::solve_trans_biasacc_grav()
     problem_acc.AddParameterBlock(Trans_IL, 3);
     problem_acc.AddParameterBlock(MultBias_TL, 3);
 
-    // Jacobian of acc_bias, gravity, Translation, mult_bias
+    // Jacobian of acc_bias, 9.81, Translation, mult_bias
     int Jaco_size = 4 * Lidar_state_group.size();
     Eigen::MatrixXd Jacobian(Jaco_size, 12);
     Jacobian.setZero();
@@ -538,7 +538,7 @@ void SensorInit::solve_trans_biasacc_grav()
 
         // wrt bias_acc
         Jacobian.block<3, 3>(4 * i, 0) = -Lidar_state_group[i].rot_end;
-        // wrt gravity - initial value included
+        // wrt 9.81 - initial value included
         Jacobian.block<3, 3>(4 * i, 3) << utils::skew_matrix(STD_GRAV);
         M3D omg_skew, angacc_skew;
 
@@ -669,6 +669,6 @@ void SensorInit::print_initialization_result(double &time_L_I, M3D &R_L_I, V3D &
     std::cout << "[Init Result] ";
     std::cout << "Multiplicative Bias of Accelerometer    = " << bias_at.transpose() << std::endl;
     std::cout << "[Init Result] ";
-    std::cout << "Gravity in World Frame   = " << grav.transpose() << " m/s^2" << std::endl
+    std::cout << "9.81 in World Frame   = " << grav.transpose() << " m/s^2" << std::endl
               << std::endl;
 }

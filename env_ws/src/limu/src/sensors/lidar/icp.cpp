@@ -26,54 +26,33 @@ namespace
 
         return downsampled;
     }
+
+    std::vector<utils::Point::Ptr> voxel_downsample(const std::vector<utils::Point::Ptr> &frame, double vox_size)
+    {
+        tsl::robin_map<utils::Voxel, utils::Point::Ptr, utils::VoxelHash> grid;
+        grid.reserve(frame.size());
+        for (const auto &point : frame)
+        {
+            const auto vox = utils::get_vox_index(point, vox_size);
+            if (grid.contains(vox))
+                continue;
+            grid.insert(std::make_pair(vox, point));
+        }
+
+        std::vector<utils::Point::Ptr> downsampled;
+        downsampled.reserve(grid.size());
+        std::transform(
+            grid.begin(), grid.end(),
+            std::back_inserter(downsampled),
+            [](const auto &kv)
+            { return kv.second; });
+
+        return downsampled;
+    }
 }
 
 namespace lidar
 {
-
-    utils::Vec3dVector KissICP::deskew_scan(const utils::PointCloudXYZI &frame, const std::vector<double> &timestamps)
-    {
-        const auto e_frame = utils::pointcloud2eigen(frame);
-        const size_t num_poses = poses.size();
-        if (!config.deskew)
-            return e_frame;
-
-        if (num_poses <= 2)
-            return e_frame;
-
-        return compensator.deskew_scan(frame, timestamps, poses[num_poses - 2], poses[num_poses - 1]);
-    }
-
-    ReturnTuple KissICP::register_frame(
-        const utils::PointCloudXYZI &frame, const std::vector<double> &timestamps)
-    {
-        const auto post_screw_frame = deskew_scan(frame, timestamps);
-
-        return register_frame(post_screw_frame);
-    }
-
-    // register frame
-    ReturnTuple KissICP::register_frame(const utils::Vec3dVector &frame)
-    {
-        // returns {source, frame_downsample}
-        utils::Vec3_Vec3Tuple processed_frame = voxelize(frame);
-        auto &down_sampled = std::get<1>(processed_frame);
-        auto &source = std::get<0>(processed_frame);
-
-        // Get motion prediction and adaptive threshold
-        const double sigma = ICP_setup();
-
-        // Run Icp
-        const SE3d new_pose = ICP(
-            local_map, source, init_guess, 3.0 * sigma, sigma / 3.0,
-            config.icp_max_iteration, config.estimation_threshold);
-
-        update_map(down_sampled, new_pose);
-
-        // deskewed, keypoints, pose
-        return {down_sampled, source, new_pose};
-    }
-
     double KissICP::ICP_setup()
     {
         // Get motion prediction and adaptive threshold
@@ -87,18 +66,19 @@ namespace lidar
         return sigma;
     }
 
-    void KissICP::update_map(utils::Vec3dVector &map_points, const SE3d &new_pose)
+    void KissICP::update_map(PointsPtrVector &map_points, const SE3d &new_pose, bool transform_point)
     {
         const auto model_dev = init_guess.inverse() * new_pose;
-        adaptive_threshold.update_model_deviation(model_dev);
+        adaptive_threshold->update_model_deviation(model_dev);
 
-        local_map.update(map_points, new_pose);
+        // points here have been transformed already.. so using identity to maintain code structure
+        local_map->update(map_points, new_pose, transform_point);
         poses.emplace_back(new_pose);
     }
 
-    utils::Vec3_Vec3Tuple KissICP::voxelize(const utils::Vec3dVector &frame)
+    VoxelDownsampleTuple KissICP::voxelize(const PointsPtrVector &frame)
     {
-        const double vox_size = config.voxel_size;
+        const double vox_size = voxel_size;
         // convert point clouds to eigen
         const auto downsample = voxel_downsample(frame, vox_size * 0.5);
         const auto source = voxel_downsample(downsample, vox_size * 1.5);
@@ -110,9 +90,9 @@ namespace lidar
     double KissICP::get_adaptive_threshold()
     {
         if (!has_moved())
-            return config.initial_threshold;
+            return initial_threshold;
 
-        return adaptive_threshold.compute_threshold();
+        return adaptive_threshold->compute_threshold();
     }
 
     SE3d KissICP::get_prediction_model() const
@@ -131,16 +111,6 @@ namespace lidar
             return false;
 
         const double motion = (poses.front().inverse() * poses.back()).translation().norm();
-        return motion > 5.0 * config.min_motion_th;
+        return motion > 5.0 * min_motion_th;
     }
-
-    utils::Vec3Tuple KissICP::current_vel()
-    {
-        if (!has_moved())
-            return {utils::Vec3d::Zero(), utils::Vec3d::Zero()};
-
-        const std::size_t N = poses.size();
-        return utils::get_motion(poses[N - 2], poses[N - 1], scan_duration);
-    }
-
 }

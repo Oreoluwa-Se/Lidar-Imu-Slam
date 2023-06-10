@@ -4,20 +4,22 @@
 #include <tbb/parallel_reduce.h>
 #include <tbb/blocked_range.h>
 #include <tbb/parallel_for.h>
+#include <functional>
 #include <thread>
 #include <queue>
-
+#include <sstream>
 namespace lidar
 {
-    void VoxelHashMap::insert_points(const utils::Vec3dVector &points)
+
+    void VoxelHashMap::insert_points(const PointsPtrVector &points)
     {
         // concurrent_vector to hold points for each voxel
-        tbb::concurrent_vector<std::pair<utils::Voxel, utils::Vec3d>> vox_points;
+        tbb::concurrent_vector<std::pair<utils::Voxel, MapPointPtr>> vox_points;
 
         // chunck properties
         int num_threads = std::thread::hardware_concurrency();
         int chunk_size = std::max(static_cast<int>(static_cast<double>(points.size() / num_threads)), 1);
-        std::vector<utils::Vec3dVector::const_iterator> chunk_starts;
+        std::vector<PointsPtrVector::const_iterator> chunk_starts;
         {
             for (auto it = points.begin(); it < points.end(); it += chunk_size)
             {
@@ -45,7 +47,6 @@ namespace lidar
             });
 
         // add to map
-        boost::unique_lock<boost::shared_mutex> lock(map_mutex);
         for (const auto &vox_point : vox_points)
         {
             const auto &vox = std::get<0>(vox_point);
@@ -57,28 +58,31 @@ namespace lidar
 
             // non const access
             auto &voxel_block = map[vox];
-            voxel_block.add_point(std::make_shared<utils::Vec3d>(point));
+            voxel_block.add_point(point);
         }
     }
 
-    utils::Vec3d VoxelHashMap::get_closest_neighbour(const utils::Vec3d &point)
+    PointsVector VoxelHashMap::get_closest_neighbour(const MapPoint &point, double max_corresp, int num_corresp)
     {
-        // convert the point to voxel
-        const auto point_vox = utils::get_vox_index(point, vox_size);
+        // Validate input parameters
+        if (max_corresp <= 0.0)
+            throw std::invalid_argument("max_corresp must be greater than 0");
 
-        // check if voxel in map
-        boost::shared_lock<boost::shared_mutex> lock(map_mutex);
-        const auto it = map.find(point_vox);
-        if (it != map.end())
-            return *(it->second.get_closest_point(point));
+        if (num_corresp <= 0)
+            throw std::invalid_argument("num_corresp must be greater than 0");
+
+        boost::unique_lock<boost::shared_mutex> lock(map_mutex);
+        // convert the point to voxel
+        const auto point_vox = utils::get_vox_index(point.point, vox_size);
 
         // restrict voxel range we search for
-        auto kx = static_cast<int>(point[0] / vox_size);
-        auto ky = static_cast<int>(point[1] / vox_size);
-        auto kz = static_cast<int>(point[2] / vox_size);
+        auto kx = point_vox.x();
+        auto ky = point_vox.y();
+        auto kz = point_vox.z();
+        double corresp_sq = max_corresp * max_corresp;
 
-        // populate voxel map
-        std::priority_queue<std::pair<double, const VoxelBlock *>> closest_voxels;
+        using QueueType = std::pair<double, MapPointPtr>;
+        std::priority_queue<QueueType, std::vector<QueueType>, std::greater<QueueType>> closest_points_heap;
         for (int i = kx - 1; i <= kx + 1; ++i)
         {
             for (int j = ky - 1; j <= ky + 1; ++j)
@@ -86,60 +90,97 @@ namespace lidar
                 for (int k = kz - 1; k <= kz + 1; ++k)
                 {
                     const auto voxel = utils::Voxel(i, j, k);
-                    if (map.find(voxel) != map.end())
+                    const auto it = map.find(voxel);
+                    if (it == map.end())
+                        continue;
+
+                    const auto dist = (point_vox - voxel).squaredNorm();
+                    if (dist > corresp_sq)
+                        continue;
+
+                    const auto closest_points = it->second.get_closest_points(point, max_corresp, num_corresp);
+                    for (const auto &closest : closest_points)
                     {
-                        auto dist = (point_vox - voxel).squaredNorm();
-                        closest_voxels.emplace(dist, &map[voxel]);
+                        const auto p_dist = (point - *closest).squaredNorm();
+                        closest_points_heap.emplace(p_dist, closest);
                     }
                 }
             }
         }
 
-        if (closest_voxels.empty())
-            return utils::Vec3d::Zero();
+        // change this snippet to fit the new narrative for  max number of corresponding points
+        PointsVector closest_neighbors;
+        closest_neighbors.reserve(num_corresp);
+        int idx = 0;
+        while (!closest_points_heap.empty() && idx != num_corresp)
+        {
+            closest_neighbors.emplace_back(*(closest_points_heap.top().second));
+            closest_points_heap.pop();
+            ++idx;
+        }
 
-        return *(closest_voxels.top().second->get_closest_point(point));
+        return closest_neighbors;
     }
 
-    utils::Vec3_Vec3Tuple VoxelHashMap::get_correspondences(const utils::Vec3dVector &points, double max_correspondance)
+    CorrespondenceTuple VoxelHashMap::get_correspondences(
+        const PointsPtrVector &points, double max_corresp, int num_corresp)
     {
-        utils::Vec3_Vec3Tuple result;
-        utils::Vec3dVector source, target;
-        tbb::concurrent_vector<utils::Vec3d> src, targ;
-        src.reserve(points.size());
-        targ.reserve(points.size());
+        tbb::concurrent_vector<std::vector<MapPoint>> matched(points.size());
 
-        double max_corresp_sq = max_correspondance * max_correspondance;
-
-        tbb::parallel_for_each(
-            points.begin(), points.end(),
-            [&](const auto &point)
+        tbb::parallel_for(
+            tbb::blocked_range<size_t>(0, points.size()),
+            [&](const tbb::blocked_range<size_t> &range)
             {
-                const auto found = get_closest_neighbour(point);
-
-                if ((found - point).squaredNorm() < max_corresp_sq)
+                for (size_t i = range.begin(); i != range.end(); ++i)
                 {
-                    src.emplace_back(point);
-                    targ.emplace_back(found);
+                    const auto &point = points[i];
+                    const auto closest_neighbors = get_closest_neighbour(
+                        *point, max_corresp, num_corresp);
+
+                    auto &corresp_for_point = matched.at(i);
+                    corresp_for_point.reserve(num_corresp);
+
+                    corresp_for_point.insert(corresp_for_point.end(), closest_neighbors.begin(), closest_neighbors.end());
                 }
             });
 
-        std::move(src.begin(), src.end(), std::back_inserter(source));
-        std::move(targ.begin(), targ.end(), std::back_inserter(target));
-        return {source, target};
+        const int r_size = static_cast<int>(points.size()) * num_corresp;
+        PointsVector target;
+        std::vector<int> idx_vec;
+        target.reserve(r_size);
+        idx_vec.reserve(r_size);
+
+        int idx = 0;
+        for (const auto &corresp_for_points : matched)
+        {
+            if (!corresp_for_points.empty())
+            {
+                for (const auto &found : corresp_for_points)
+                {
+                    target.emplace_back(found);
+                    idx_vec.emplace_back(idx);
+                }
+            }
+
+            ++idx;
+        }
+
+        return {idx_vec, target};
     }
 
-    void VoxelHashMap::update(const utils::Vec3dVector &points, const utils::Vec3d &origin)
+    void VoxelHashMap::update(const PointsPtrVector &points, const utils::Vec3d &origin)
     {
         insert_points(points);
         remove_points_from_far(origin);
     }
 
-    void VoxelHashMap::update(const utils::Vec3dVector &points, const SE3d &pose)
+    void VoxelHashMap::update(const PointsPtrVector &points, const SE3d &pose, bool transform_points)
     {
         auto converted_points = points;
         const utils::Vec3d &origin = pose.translation();
-        utils::transform_points(pose, converted_points);
+        if (transform_points)
+            utils::transform_points(pose, converted_points);
+
         update(converted_points, origin);
     }
 
@@ -148,7 +189,7 @@ namespace lidar
         const auto max_dist_sq = max_distance * max_distance;
         const auto origin_vox = utils::get_vox_index(origin, vox_size);
         using map_type = tsl::robin_map<utils::Voxel, VoxelBlock, utils::VoxelHash>;
-        // boost::upgrade_lock<boost::shared_mutex> lock(map_mutex);
+
         tbb::parallel_for(
             tbb::blocked_range<size_t>(0, map.size()),
             [&](const tbb::blocked_range<size_t> &range)
@@ -170,29 +211,37 @@ namespace lidar
             });
     }
 
-    utils::Vec3dVector VoxelHashMap::pointcloud() const
+    PointsVector VoxelHashMap::pointcloud() const
     {
-        utils::Vec3dVector points;
-
         boost::shared_lock<boost::shared_mutex> lock(map_mutex);
-        points.reserve(max_points_per_voxel * map.size());
+        tbb::concurrent_vector<MapPoint> c_points;
 
         tbb::parallel_for_each(
             map.begin(), map.end(),
             [&](const auto &vox_blck_pair)
             {
-                const auto block_ptr = vox_blck_pair.second.get_points();
+                // std::vector<MapPointPtr>
+                const auto block_vec_ptr = vox_blck_pair.second.get_points();
                 tbb::parallel_for(
-                    tbb::blocked_range<size_t>(0, block_ptr->size()),
+                    tbb::blocked_range<size_t>(0, block_vec_ptr.size()),
                     [&](const tbb::blocked_range<size_t> &r)
                     {
                         for (size_t i = r.begin(); i < r.end(); ++i)
                         {
-                            const auto &point = (*block_ptr)[i];
-                            points.emplace_back(*point);
+                            const auto &point = block_vec_ptr[i];
+                            c_points.emplace_back(*point);
                         }
                     });
             });
+
+        PointsVector points;
+        points.reserve(c_points.size());
+
+        std::transform(
+            c_points.begin(), c_points.end(),
+            std::back_inserter(points),
+            [](auto &&point)
+            { return std::move(point); });
 
         return points;
     }
@@ -209,18 +258,3 @@ namespace lidar
         return map.empty();
     }
 }
-
-// tbb::parallel_for_each(
-//     local_map.begin(), local_map.end(),
-//     [&](const auto &it)
-//     {
-//         const auto& vox = it.first;
-//         if ((vox - origin_vox).squaredNorm() > max_dist_sq)
-//         {
-//             boost::unique_lock<boost::shared_mutex> lock(map_mutex);
-//             auto &block = map[vox];
-//             block.remove_points(origin, max_distance);
-
-//             if (block.empty())
-//                 map.erase(vox);
-//         } });

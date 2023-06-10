@@ -4,109 +4,47 @@
 #include "common.hpp"
 #include <unordered_map>
 #include <tbb/parallel_for.h>
+#include <iomanip>
 
 namespace utils
 {
-    // Convert a quaternion to a rotation matrix
-    // Input: q - a quaternion as a 4-element vector (w, x, y, z)
-    // Output: a 3x3 rotation matrix
-    template <typename T>
-    inline Eigen::Matrix3d quat2rmat(const T &q)
+    inline Eigen::Vector4d quat2vec(const Eigen::Quaterniond &v)
     {
-        Eigen::Quaterniond quat(q);
-        Eigen::Matrix3d R = quat.toRotationMatrix();
-
-        return R;
-    }
-
-    inline Eigen::Quaterniond rmat2quat(const Eigen::Matrix3d &mat)
-    {
-        Eigen::Quaterniond quat(mat);
-        quat.normalize();
-        return quat;
-    }
-    inline Eigen::Matrix3d extract_rot_dr(const Eigen::Vector4d &q, Eigen::Matrix3d (&dR)[4])
-    {
-        // use perturbation to calculate derivative
-        for (int i = 0; i < 4; i++)
-        {
-            Eigen::Vector4d dq = Eigen::Vector4d::Zero();
-            dq(i) = 1.0;
-            Eigen::Matrix3d dRi = quat2rmat(dq) - quat2rmat(q);
-            dR[i] = dRi;
-        }
-
-        return quat2rmat(q);
-    }
-
-    inline Eigen::Matrix3d ang_vel_to_rmat(const Eigen::Vector3d &ang_vel, double dt)
-    {
-        Eigen::AngleAxisd aa(dt * ang_vel.norm(), ang_vel.normalized());
-
-        return aa.toRotationMatrix();
-    }
-
-    inline Eigen::Vector3d quat_mult_point(const Eigen::Vector4d &quat_v, const Eigen::Vector3d &p)
-    {
-        Eigen::Quaterniond q(quat_v);
-        Eigen::Quaterniond q_inv = q.conjugate();
-        Eigen::Quaterniond p_quat(0, p(0), p(1), p(2));
-        Eigen::Quaterniond p_rotated = q * p_quat * q_inv;
-        return p_rotated.vec();
-    }
-
-    inline Eigen::Vector4d quat_mult_point_q(const Eigen::Vector4d &quat_v, const Eigen::Vector3d &p)
-    {
-        Eigen::Quaterniond q(quat_v);
-        Eigen::Quaterniond q_inv = q.conjugate();
-        Eigen::Quaterniond p_quat(0, p(0), p(1), p(2));
-        Eigen::Quaterniond p_rotated = q * p_quat * q_inv;
-        return Eigen::Vector4d(p_rotated.w(), p_rotated.x(), p_rotated.y(), p_rotated.z());
-    }
-
-    inline Eigen::Quaterniond quat_mult_norm(const Eigen::Quaterniond &q1, const Eigen::Quaterniond &q2)
-    {
-        Eigen::Quaterniond q = q1 * q2;
+        Eigen::Vector4d q;
+        q << v.w(), v.x(), v.y(), v.z();
         q.normalize();
         return q;
     }
 
-    inline Eigen::Vector4d rot_norm(const Eigen::Vector4d &v)
+    inline Eigen::Quaterniond vec2quat(const Eigen::Vector4d &v)
     {
-        Eigen::Quaterniond q(v(0), v(1), v(2), v(3));
-        q.normalize();
-        return q.coeffs();
-    }
-    inline Eigen::Quaterniond quat_mult_norm(const Eigen::Vector4d &v1, const Eigen::Vector4d &v2)
-    {
-        Eigen::Quaterniond q1(v1);
-        Eigen::Quaterniond q2(v2);
-
-        return quat_mult_norm(q1, q2);
+        return Eigen::Quaterniond(v(0), v(1), v(2), v(3)).normalized();
     }
 
-    inline Eigen::Matrix4d ohm(const Eigen::Vector3d &vec)
+    inline Sophus::SE3d get_pose(const Eigen::Vector4d &quat_v, const Eigen::Vector3d &t)
     {
-        Eigen::Matrix4d S;
-        (S << 0, -vec[0], -vec[1], -vec[2],
-         vec[0], 0, -vec[2], vec[1],
-         vec[1], vec[2], 0, -vec[0],
-         vec[2], -vec[1], vec[0], 0)
-            .finished();
-
-        return S;
+        return Sophus::SE3d(utils::vec2quat(quat_v), t);
     }
 
-    inline Eigen::Vector4d ohm_to_vec(const Eigen::Matrix4d &mat)
+    inline Eigen::Vector4d rmat2quat(const Eigen::Matrix3d &R)
     {
-        Eigen::Vector4d _vec(0, mat(1, 0), mat(2, 0), mat(3, 0));
+        Eigen::Quaterniond q(R);
+        Eigen::Vector4d q_v;
+        // Set the order of coefficients to [w, x, y, z]
+        q_v << q.w(), q.x(), q.y(), q.z();
 
-        return _vec;
+        return q_v;
+    }
+
+    inline Eigen::Matrix3d quat2rmat(const Eigen::Vector4d &qvec)
+    {
+        Eigen::Quaterniond q = utils::vec2quat(qvec);
+        return q.toRotationMatrix();
     }
 
     inline Eigen::Vector3d quat_to_euler(const Eigen::Vector4d &v1)
     {
-        Eigen::Quaterniond q(v1.normalized());
+        Eigen::Quaterniond q = utils::vec2quat(v1);
         Eigen::Vector3d euler;
 
         double sinr_cosp = 2.0 * (q.w() * q.x() + q.y() * q.z());
@@ -130,6 +68,13 @@ namespace utils
         return euler;
     }
 
+    inline Eigen::Vector3d rmat_to_euler(const Eigen::Matrix3d &R)
+    {
+        Eigen::Vector4d q = rmat2quat(R);
+
+        return quat_to_euler(q);
+    }
+
     inline Eigen::Matrix4d left_quat2mat(const Eigen::Quaterniond &q)
     {
         Eigen::Matrix4d mat;
@@ -148,6 +93,168 @@ namespace utils
             q.y(), -q.z(), q.w(), q.x(),
             q.z(), q.y(), -q.x(), q.w();
         return mat;
+    }
+
+    inline Eigen::Matrix<double, 3, 4> jacobian_wrt_quat(const Eigen::Vector4d &quat_v, const Eigen::Vector3d &p)
+    {
+        /* General function for calculation Jacobian wrt quaternion */
+        const double w = quat_v[0];
+        const Eigen::Vector3d v(quat_v[1], quat_v[2], quat_v[3]);
+
+        const Eigen::Matrix3d I = Eigen::Matrix3d::Identity();
+
+        Eigen::Matrix<double, 3, 4> int_mat;
+
+        // quaternion solutions
+        int_mat.block<3, 1>(0, 0) = 2 * (w * p + v.cross(p));
+        int_mat.block<3, 3>(0, 1) = 2 * (v.transpose() * p * I + v * p.transpose() - p * v.transpose() - w * utils::skew_matrix(p));
+
+        return int_mat;
+    }
+
+    // convert vector 4d orientation into rotation matrix
+    inline Eigen::Matrix3d vec4d_to_rmat(const Eigen::Vector4d &vec)
+    {
+        Eigen::Matrix3d rot_m = utils::quat2rmat(vec);
+        utils::rot_mat_norm(rot_m);
+
+        return rot_m;
+    }
+
+    inline Eigen::Vector4d quat_left_multiply(const Eigen::Vector4d &vec, const Eigen::Vector4d &prev)
+    {
+        // used for quaternion quaternion multiplication
+        Eigen::Matrix4d S;
+
+        (S << vec[0], -vec[1], -vec[2], -vec[3],
+         vec[1], vec[0], -vec[3], vec[2],
+         vec[2], vec[3], vec[0], -vec[1],
+         vec[3], -vec[2], vec[1], vec[0])
+            .finished();
+
+        Eigen::Vector4d r = S * prev;
+        r.normalize();
+
+        return r;
+    }
+
+    inline Eigen::Vector4d quat_right_multiply(const Eigen::Vector4d &vec, const Eigen::Vector4d &prev)
+    {
+        // used for quaternion quaternion multiplication
+        Eigen::Matrix4d S;
+
+        // represents the skewed quaternions
+        (S << vec[0], -vec[1], -vec[2], -vec[3],
+         vec[1], vec[0], vec[3], -vec[2],
+         vec[2], -vec[3], vec[0], vec[1],
+         vec[3], vec[2], -vec[1], vec[0])
+            .finished();
+
+        Eigen::Vector4d r = S * prev;
+        r.normalize();
+
+        return r;
+    }
+
+    inline Eigen::Vector4d dquat_left_multiply(const Eigen::Vector3d &vec, const Eigen::Vector4d &prev, double dt = 1)
+    {
+        // used when we are incrementing by dtheta
+        Eigen::Matrix4d S;
+
+        (S << 0, -vec[0], -vec[1], -vec[2],
+         vec[0], 0, -vec[2], vec[1],
+         vec[1], vec[2], 0, -vec[0],
+         vec[2], -vec[1], vec[0], 0)
+            .finished();
+
+        S *= 0.5 * dt;
+        Eigen::Matrix4d A = S.exp();
+        Eigen::Vector4d r = A * prev;
+        r.normalize();
+
+        return r;
+    }
+
+    // inline Eigen::Matrix3d extract_ori_ori(const Eigen::Vector3d &vec, double dt = 1)
+    // {
+    //     // used when we are incrementing by dtheta
+    //     Eigen::Matrix4d S;
+
+    //     (S << 0, -vec[0], -vec[1], -vec[2],
+    //      vec[0], 0, -vec[2], vec[1],
+    //      vec[1], vec[2], 0, -vec[0],
+    //      vec[2], -vec[1], vec[0], 0)
+    //         .finished();
+
+    //     S *= 0.5 * dt;
+    //     Eigen::Matrix4d A = S.exp();
+    //     Eigen::Matrix3d rot_m = A.block(0, 0, 3, 3);
+    //     utils::rot_mat_norm(rot_m);
+
+    //     return rot_m;
+    // }
+
+    inline Eigen::Matrix3d extract_ori_ori(const Eigen::Vector3d &vec, double dt = 1)
+    {
+        Eigen::Matrix3d rot_m = utils::skew_matrix(vec) * dt;
+        rot_m = rot_m.exp();
+
+        // utils::rot_mat_norm(rot_m);
+
+        return rot_m;
+    }
+
+    inline Eigen::Vector4d dquat_right_multiply(const Eigen::Vector3d &vec, const Eigen::Vector4d &prev, double dt = 1)
+    {
+        // used when we are incrementing by dtheta
+        Eigen::Matrix4d S;
+
+        (S << 0, -vec[0], -vec[1], -vec[2],
+         vec[0], 0, vec[2], -vec[1],
+         vec[1], -vec[2], 0, vec[0],
+         vec[2], vec[1], -vec[0], 0)
+            .finished();
+
+        S *= 0.5 * dt;
+        Eigen::Matrix4d A = S.exp();
+        Eigen::Vector4d r = A * prev;
+        r.normalize();
+
+        return r;
+    }
+
+    // derviative of true state orientation wrt error state.
+    inline Eigen::MatrixXd ori_ts_jacobian(const Eigen::Vector4d &rot)
+    {
+
+        Eigen::MatrixXd rotation_matrix(4, 3);
+        rotation_matrix << -rot[1], -rot[2], -rot[3],
+            rot[0], rot[3], -rot[2],
+            -rot[3], rot[0], rot[1],
+            rot[2], -rot[1], rot[0];
+
+        return 0.5 * rotation_matrix;
+    }
+
+    inline Eigen::Matrix3d rot_mat_frm_vec(const Eigen::Vector3d &rot_vec)
+    {
+        double angle = rot_vec.norm();
+        Eigen::Vector3d axis = rot_vec.normalized();
+
+        double c = cos(angle);
+        double s = sin(angle);
+        double t = 1 - c;
+
+        Eigen::Matrix3d cpm;
+        (cpm << 0, -axis.z(), axis.y(),
+         axis.z(), 0, -axis.x(),
+         -axis.y(), axis.x(), 0)
+            .finished();
+
+        Eigen::Matrix3d rotation = Eigen::Matrix3d::Identity() + (s * cpm) + (t * cpm * cpm);
+        utils::rot_mat_norm(rotation);
+
+        return rotation;
     }
 
 }

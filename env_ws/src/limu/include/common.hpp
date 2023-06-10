@@ -2,9 +2,14 @@
 #define COMMON_HPP
 
 #include "limu/utils/calculation_helpers.hpp"
-#include <tbb/parallel_sort.h>
+#include <boost/thread/shared_mutex.hpp>
+#include "limu/utils/rviz_vizualizer.hpp"
+#include "limu/utils/print_helpers.hpp"
 #include "limu/utils/types.hpp"
+#include <yaml-cpp/yaml.h>
 #include <algorithm>
+#include <utility>
+#include <fstream>
 #include <string>
 #include <deque>
 #include <mutex>
@@ -12,54 +17,36 @@
 
 // define constants
 #define PI_M 3.14159265358979
-#define IQR_TUCHEY 1.25
-#define gravity 9.81
+#define IQR_TUCHEY 1.5
+#define MAD_THRESH_VAL 3.0
 
-namespace outlier
+// yaml exractors -> should just make this a template
+inline void set_double_param(double &param, const YAML::Node &value)
 {
+    param = value.as<double>();
+}
 
-    // for calculating median in IQR
-    template <typename itr>
-    inline typename std::iterator_traits<itr>::value_type median(itr begin, itr end)
+inline void set_bool_param(bool &param, const YAML::Node &value)
+{
+    param = value.as<bool>();
+}
+
+inline void set_int_param(int &param, const YAML::Node &value)
+{
+    param = value.as<int>();
+}
+
+inline std::vector<double> extract_rot_mat_values(const YAML::Node &imuRNode)
+{
+    std::vector<double> rot_values;
+    for (const auto &row : imuRNode)
     {
-        const int size = std::distance(begin, end);
-        const int half = size / 2;
-        itr mid = begin + half;
-        // partially sorts vector. middle element becomes the median element
-        std::nth_element(begin, mid, end);
-        // handle even case
-        if (size % 2 == 0)
-        { // used because the vector isn't fully sorted
-            itr p_mid = std::max_element(begin, mid);
-            return (*p_mid + *mid) / 2.0;
-        }
-
-        return *mid;
-    }
-    // IQR stuff
-    template <typename T>
-    inline std::vector<double> IQR(std::vector<T> &inp)
-    {
-        std::vector<T> a(inp.begin(), inp.end());
-        const int n = a.size();
-        if (n < 30)
-            std::sort(a.begin(), a.end());
-        else
-            tbb::parallel_sort(a.begin(), a.end());
-
-        if (n == 1)
+        for (const auto &value : row)
         {
-            return {0, a[0], a[0]};
+            rot_values.push_back(value.as<double>());
         }
-
-        // median of lower and upper halves
-        const int half = n / 2;
-        const T q1 = median(a.begin(), a.begin() + half);
-        const T q3 = median(a.begin() + half + n % 2, a.end());
-
-        const double iqr = static_cast<double>(q3 - q1);
-
-        return {static_cast<double>(q1), static_cast<double>(q3), iqr};
     }
+
+    return rot_values;
 }
 #endif

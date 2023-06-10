@@ -5,32 +5,37 @@
 #include <boost/thread/shared_mutex.hpp>
 #include "voxel_block.hpp"
 #include "common.hpp"
-#include <utility>
 
 namespace lidar
 {
-    using Vec3dPointer = std::shared_ptr<utils::VecEigenPtrVec3d>;
     using SE3d = Sophus::SE3d;
+    using MapPoint = utils::Point;
+    using MapPointPtr = MapPoint::Ptr;
+    using PointsVector = std::vector<MapPoint>;
+    using PointsPtrVector = std::vector<MapPointPtr>;
+    using CorrespondenceTuple = std::tuple<std::vector<int>, PointsVector>;
+
     class VoxelHashMap
     {
     public:
-        VoxelHashMap(double vox_size, double max_distance, int max_points_per_voxel, int vox_side_length = 3)
-            : vox_size(vox_size), max_distance(max_distance), max_points_per_voxel(max_points_per_voxel),
-              vox_cube(vox_side_length * vox_side_length * vox_side_length){};
+        VoxelHashMap(double vox_size, double max_distance, int max_points_per_voxel)
+            : vox_size(vox_size), max_distance(max_distance),
+              max_points_per_voxel(static_cast<size_t>(max_points_per_voxel)),
+              num_corresp(1){};
 
         // insert points into map
-        void insert_points(const utils::Vec3dVector &points);
+        void insert_points(const PointsPtrVector &points);
 
-        utils::Vec3d get_closest_neighbour(const utils::Vec3d &points);
+        PointsVector get_closest_neighbour(const MapPoint &points, double max_corresp, int num_corresp = 1);
 
-        utils::Vec3_Vec3Tuple get_correspondences(const utils::Vec3dVector &points, double max_correspondance);
+        CorrespondenceTuple get_correspondences(const PointsPtrVector &points, double max_corresp, int num_corresp = 1);
 
         // update map points
-        void update(const utils::Vec3dVector &points, const utils::Vec3d &origin);
-        void update(const utils::Vec3dVector &points, const SE3d &pose);
+        void update(const PointsPtrVector &points, const SE3d &pose, bool transform_points = false);
+        void update(const PointsPtrVector &points, const utils::Vec3d &origin);
 
         void remove_points_from_far(const utils::Vec3d &origin);
-        utils::Vec3dVector pointcloud() const;
+        PointsVector pointcloud() const;
 
         void clear();
         bool empty() const;
@@ -38,13 +43,13 @@ namespace lidar
     public:
         // attributes
         tsl::robin_map<utils::Voxel, VoxelBlock, utils::VoxelHash> map;
-
+        // introduce a vector for tracking point cloud.. should use a weak pointer
     private:
         mutable boost::shared_mutex map_mutex;
-        int max_points_per_voxel;
+        size_t max_points_per_voxel;
         double max_distance;
         double vox_size;
-        int vox_cube;
+        int num_corresp;
     };
 }
 #endif

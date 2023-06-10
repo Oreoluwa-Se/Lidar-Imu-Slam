@@ -1,0 +1,172 @@
+# Odometry Estimation System Configuration
+
+common:
+  # Store all coordinates (true/false)
+  store_all_coordinates: false
+
+  # Location to store all pose coordinates
+  all_pose_storage_loc: "/mnt/c/wslShared/Robotics/lidar/lidar-imu-slam/env_ws/src/limu/result/pose_all.txt"
+
+  # Location to store pose coordinates
+  pose_storage_loc: "/mnt/c/wslShared/Robotics/lidar/lidar-imu-slam/env_ws/src/limu/result/pose.txt"
+
+  # Lidar topic
+  lidar_topic: "/rslidar_points"
+
+  # IMU topic
+  imu_topic: "/imu_ned/data"
+
+  # Odom frame
+  odom_frame: "odom"
+
+  # Child frame
+  child_frame: "base_link"
+
+  # IMU orientation is NED (true/false)
+  imu_is_ned: true
+
+  # Gravity value
+  gravity: 9.81
+
+  # Pose trail length for visualization
+  pose_trail: 1000
+
+  # Update point cloud every k timestamps
+  update_every_k_ts: 1
+
+  # Debugging options
+  print_kf_matrices: false
+  verbose: true
+
+  # Run modes
+  use_imu_as_input: false
+  use_outliers: true
+  run_lidar: true
+
+imu_preprocessing:
+  # IMU reset frequency
+  reset: 100
+
+scan_preprocessing:
+  # Frame rate of the scanner
+  frame_rate: 10.0
+
+  # Maximum range of the scanner
+  max_range: 80
+
+  # Minimum range of the scanner
+  min_range: 0.5
+
+  # Minimum scanning angle
+  min_angle: 0.0
+
+  # Maximum scanning angle
+  max_angle: 360.0
+
+  # Number of scan lines
+  num_scan_lines: 16
+
+sensor_locations:
+  # Use sensor locations for extrinsic calibration (true/false)
+  use_locs: true
+
+  # Lidar rotation matrix
+  lidar_R:
+    - [1.0, 0.0, 0.0]
+    - [0.0, 1.0, 0.0]
+    - [0.0, 0.0, 1.0]
+
+  # Lidar translation vector
+  lidar_T:
+    - [0.0, 0.0, 1.97]
+
+  # IMU rotation matrix
+  imu_R:
+    - [1.0, 0.0, 0.0]
+    - [0.0, 1.0, 0.0]
+    - [0.0, 0.0, 1.0]
+
+  # IMU translation vector
+  imu_T:
+    - [-0.03, 0, 1.90]
+
+icp_params:
+  # Voxel size for ICP algorithm
+  voxel_size: 1.0
+
+  # Maximum number of points per voxel
+  max_points_per_voxel: 20
+
+  # Minimum motion threshold for ICP algorithm
+  min_motion_th: 0.1
+
+  # Maximum number of iterations for ICP algorithm
+  max_iteration: 500
+
+  # Initial threshold for ICP algorithm
+  initial_threshold: 2.0
+
+  # Estimation threshold for ICP algorithm
+  estimation_threshold: 0.0001
+
+  # Maximum map distance for ICP algorithm
+  maximum_map_distance: 150
+
+  # Number of correspondences for ICP algorithm
+  num_correspondences: 1
+
+kalman_filter_params:
+  # Noise scale for state and process covariance matrices
+  noise_scale: 100
+
+  # Estimate extrinsics (true/false)
+  est_extrinsic: true
+
+  # Is a ground vehicle (true/false)
+  is_ground_vehicle: false
+
+  # Lidar measurement noise
+  lidar_measurement_noise: 0.1
+
+  # IMU acceleration measurement noise
+  imu_acc_measurement_noise: 0.1
+
+  # IMU gyroscope measurement noise
+  imu_gyro_measurement_noise: 0.1
+
+  # Maximum number of IMU iterations
+  max_imu_iterations: 500
+
+  # Extrinsic rotation matrix
+  extrinsic_R:
+    - [1.0, 0.0, 0.0]
+    - [0.0, 1.0, 0.0]
+    - [0.0, 0.0, 1.0]
+
+  # Extrinsic translation vector
+  extrinsic_T:
+    - [0.03, 0, 0.07]
+
+  # State covariance matrix parameters
+  state_covariance:
+    init_pos_noise: 1e-5
+    init_vel_noise: 0.1
+    init_ori_noise: 0.0316227766
+    init_bga_noise: 1e-3
+    init_baa_noise: 1e-6
+    init_bat_noise: 1e-5
+    init_imu_acc_noise: 1e-6
+    init_imu_gyro_noise: 1e-3
+
+  # Measurement covariance matrix parameters
+  measurement_covariance:
+    noise_process_baa: 1e-4
+    noise_process_bga: 1e-6
+    acc_process_noise: 0.03
+    gyro_process_noise: 0.00017
+    acc_process_noise_rev: 0.1
+    gyro_process_noise_rev: 0.1
+    imu_acc_output: 0.01
+    imu_gyro_output: 0.0001
+    satu_gyro: 35.0
+    satu_acc: 30

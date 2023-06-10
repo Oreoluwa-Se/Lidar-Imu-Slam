@@ -7,7 +7,7 @@
 // inertial and lidar initialization
 typedef Eigen::Matrix3d M3D;
 typedef Eigen::Vector3d V3D;
-const V3D STD_GRAV = V3D(0, 0, -gravity);
+const V3D STD_GRAV = V3D(0, 0, -9.81);
 
 struct CalibState
 {

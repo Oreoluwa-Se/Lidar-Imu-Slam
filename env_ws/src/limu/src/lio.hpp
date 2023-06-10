@@ -2,6 +2,7 @@
 #define ODOM_RUN_HPP
 
 #include "tf2_ros/static_transform_broadcaster.h"
+#include <tf2_ros/transform_listener.h>
 #include "geometry_msgs/TransformStamped.h"
 #include "tf2_ros/transform_broadcaster.h"
 #include "limu/sensors/lidar/frame.hpp"
@@ -14,81 +15,94 @@
 #include "nav_msgs/Path.h"
 #include <ros/ros.h>
 #include "common.hpp"
+#include <ros/timer.h>
+#include <future>
+#include <thread>
 
 class LIO
 {
 public:
     struct Trackers
     {
-        Trackers()
-            : time_diff_imu_wrt_lidar(0.0), time_lag_IMU_wtr_lidar(0.0),
-              lidar_end_time(0.0), move_start_time(0.0), first_lidar_time(0.0),
-              timediff_set_flag(false), data_accum_finished(false),
-              data_accum_start(false), exit_flag(false), lidar_pushed(false),
-              reset_flag(false), init_map(false), flag_first_scan(true),
-              flag_reset(false), first_frame(true) {}
+        bool reset_flag{};
+        bool exit_flag{};
+        bool flag_first_scan{true};
+        bool flag_reset{};
+        bool first_frame{true};
 
-        double time_diff_imu_wrt_lidar, time_lag_IMU_wtr_lidar, lidar_end_time, move_start_time, first_lidar_time;
-        bool timediff_set_flag, data_accum_finished, data_accum_start, exit_flag, lidar_pushed, reset_flag;
-        bool init_map, flag_first_scan, flag_reset, first_frame;
+        double first_lidar_time{};
+        double current_time{};
+        double time_update_last{};
+        double time_predict_last_const{};
+        double propagate_time{};
+        double solve_time{};
+        double update_time{};
+        double imu_last_time{};
     };
 
-    explicit LIO(ros::NodeHandle &nh)
-        : lidar_ptr(std::make_shared<frame::Lidar>(nh)),
-          imu_ptr(std::make_shared<frame::Imu>(nh)),
-          tracker(Trackers())
+    explicit LIO(ros::NodeHandle &nh) : tracker(Trackers()), use_frames(false)
     {
+        nh.getParam("config_loc", params_config);
+        YAML::Node node = YAML::LoadFile(params_config);
+
+        // pointers
+        lidar_ptr = std::make_shared<frame::Lidar>(params_config);
+        imu_ptr = std::make_shared<frame::Imu>(params_config);
+        ekf = std::make_unique<odometry::EKF>(params_config);
+
         // subscribing to lidar and imu topics.
-        std::string lidar_topic, imu_topic;
-        nh.param<std::string>("lidar_topic", lidar_topic, "/rslidar_points");
-        nh.param<std::string>("imu_topic", imu_topic, "/imu_ned/data");
-        lidar_sub = nh.subscribe(lidar_topic, queue_size, &LIO::lidar_callback, this);
-        imu_sub = nh.subscribe(imu_topic, queue_size, &LIO::imu_callback, this);
+        lidar_sub = nh.subscribe(
+            node["common"]["lidar_topic"].as<std::string>(),
+            queue_size, &LIO::lidar_callback, this);
+        imu_sub = nh.subscribe(
+            node["common"]["imu_topic"].as<std::string>(),
+            queue_size, &LIO::imu_callback, this);
 
-        // initialize kalman filter;
-        setup_ekf(nh);
-
-        // initialize publishers
-        initialize_publishers(nh);
+        update_freq = node["common"]["update_every_k_ts"].as<int>();
 
         // publish static transform to connect child frame to baselink
-        nh.param<std::string>("odom_frame", odom_frame, "odom");
-        nh.param<std::string>("child_frame", child_frame, "base_link");
-        if (child_frame != "base_link")
-        {
-            static tf2_ros::StaticTransformBroadcaster br;
-            geometry_msgs::TransformStamped baselink_msg;
-            baselink_msg.header.stamp = ros::Time::now();
-            baselink_msg.transform.translation.x = 0.0;
-            baselink_msg.transform.translation.y = 0.0;
-            baselink_msg.transform.translation.z = 0.0;
-            baselink_msg.transform.rotation.x = 0.0;
-            baselink_msg.transform.rotation.y = 0.0;
-            baselink_msg.transform.rotation.z = 0.0;
-            baselink_msg.transform.rotation.w = 1.0;
-            baselink_msg.header.frame_id = child_frame;
-            baselink_msg.child_frame_id = "base_link";
-            br.sendTransform(baselink_msg);
-        }
+        odom_frame = node["common"]["odom_frame"].as<std::string>();
+        child_frame = node["common"]["child_frame"].as<std::string>();
+        run_lidar = node["common"]["run_lidar"].as<bool>();
+
+        // initialize publishers
+        initialize_transforms(params_config);
+        initialize_publishers(nh);
+
+        imu_ptr->enabled = true;
+        frontend_thread = std::thread(&LIO::run, this);
+    }
+
+    ~LIO()
+    {
+        frontend_thread.join();
     }
 
 public:
     void run();
 
 private:
-    // functions
+    Sophus::SE3d get_transform(const std::string &source_frame, const std::string &target_frame);
+
+    // starter functions
+    void publish_transform(const std::string &child_frame, const Sophus::SE3d &transform, tf2_ros::StaticTransformBroadcaster &br);
     void initialize_publishers(ros::NodeHandle &nh);
+    void initialize_transforms(std::string &loc);
+
     void lidar_callback(const sensor_msgs::PointCloud2::ConstPtr &msg);
     void imu_callback(const sensor_msgs::Imu::ConstPtr &msg);
-    bool lidar_process(frame::LidarImuInit::Ptr &meas);
-    bool imu_process(frame::LidarImuInit::Ptr &meas);
+
+    // sensor packaging systems
     bool sync_packages(frame::LidarImuInit::Ptr &meas);
-    void setup_ekf(ros::NodeHandle &nh);
-    void publish_point_cloud(
-        ros::Publisher &pub, const ros::Time &time,
-        const std::string &frame_id,
-        const utils::Vec3dVector &points);
-    void publish_init_map(const utils::Vec3dVector &map_points);
+
+    // running procedures
+    bool kalman_filter_run(const frame::SensorData &data, bool imu_enabled);
+    void imu_runner(const frame::SensorData &data, double sf = 1);
+    bool lidar_runner(const frame::SensorData &data);
+
+    void publish(int curr_idx = 0);
+
+    void process_frame(const frame::LidarImuInit::Ptr &meas);
 
     // attributes
     frame::Lidar::Ptr lidar_ptr;
@@ -96,8 +110,6 @@ private:
     odometry::EKF::Ptr ekf;
     Trackers tracker;
 
-    odometry::dyn_share_modified<double> data;
-    // broadcasting
     tf2_ros::TransformBroadcaster tf_broadcaster;
 
     // subscribe to pointcloud and imu
@@ -112,18 +124,17 @@ private:
 
     // message for publishing path
     nav_msgs::Path path_msgs;
-
-    double current_time = 0.0;
-    double time_update_last = 0.0;
-    double time_predict_last_const = 0.0;
-    double propagate_time = 0.0;
-    double solve_time = 0.0;
-    double update_time = 0.0;
+    std::string params_config;
 
     // place holders:
     std::string child_frame;
     std::string odom_frame;
     std::mutex data_mutex;
     int queue_size{1};
+    int update_freq;
+    bool imu_propagated = false;
+    bool use_frames, run_lidar = false;
+
+    std::thread frontend_thread;
 };
 #endif

@@ -4,16 +4,20 @@
 #include "limu/sensors/sync_frame.hpp"
 #include "limu/sensors/imu/frame.hpp"
 #include "limu/sensors/lidar/icp.hpp"
-#include "limu/sensors/sensor_init.hpp"
 #include <Eigen/SparseCore>
 #include <Eigen/Cholesky>
 #include "common.hpp"
 #include "states.hpp"
 #include "helper.hpp"
-#include "geometry_msgs/Vector3.h"
 
 namespace odometry
 {
+    using MapPoint = utils::Point;
+    using MapPointPtr = MapPoint::Ptr;
+    using PointsVector = std::vector<MapPoint>;
+    using PointsPtrVector = std::vector<MapPointPtr>;
+    using CorrespondenceTuple = std::tuple<std::vector<int>, PointsVector>;
+    using PointsVectorTuple = std::tuple<PointsVector, PointsVector>;
 
     template <typename T>
     struct dyn_share_modified
@@ -21,98 +25,256 @@ namespace odometry
         bool valid, converge;
         T M_noise;
         Eigen::Matrix<T, Eigen::Dynamic, 1> z;
+        Eigen::Matrix<T, Eigen::Dynamic, 1> weight;
         Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic> h_x;
         Eigen::Matrix<T, 6, 1> z_IMU;
         Eigen::Matrix<T, 6, 1> R_IMU;
 
+        std::mutex mutex;
         bool satu_check[6];
     };
 
     class EKF
     {
     public:
-        using LidarInfo = frame::Lidar::ProcessingInfo::Ptr;
         typedef std::unique_ptr<EKF> Ptr;
 
-        EKF(const LidarInfo &icp_params, PARAMETERS::Ptr &parameters)
-            : icp_ptr(std::make_shared<lidar::KissICP>(icp_params)),
-              est_extrinsic(true), use_imu_as_input(true), // testing when we use imu as input
-              laser_point_cov(0.1), init_map(false),
-              inp_state(StateInput(parameters)),
-              out_state(StateOutput(parameters)),
-              Lidar_R_wrt_IMU(Eigen::Matrix3d::Zero()),
-              Lidar_T_wrt_IMU(Eigen::Vector3d::Zero()),
-              ang_vel_read(Eigen::Vector3d::Zero()),
+        explicit EKF(const std::string &params_location)
+            : ang_vel_read(Eigen::Vector3d::Zero()),
               acc_vel_read(Eigen::Vector3d::Zero()),
-              satu_acc(parameters->satu_acc),
-              satu_gyro(parameters->satu_gyro),
-              sensor_init(std::make_shared<SensorInit>()),
-              data_accum_finished(false), frame_num(0)
+              orientation_init(false), init_map(false),
+              frame_num(0), sigma(0.0), dx_norm(0.0),
+              threshold(0.0), key_tracker(0), all_tracker(0),
+              max_imu_iter(0), use_outliers(false)
         {
-            Jaco_rot = Eigen::MatrixXd::Zero(30000, 3);
+            initialize_params(params_location);
+
+            // initialize classes
+            state = std::make_shared<State>(params_location);
+            icp_ptr = std::make_shared<lidar::KissICP>(params_location);
         }
 
-        void set_extrinsics(const Eigen::Matrix3d &_Lidar_R_wrt_IMU, const Eigen::Vector3d &_Lidar_T_wrt_IMU)
+        void initialize_params(const std::string &loc)
         {
-            Lidar_R_wrt_IMU = _Lidar_R_wrt_IMU;
-            Lidar_T_wrt_IMU = _Lidar_T_wrt_IMU;
+            YAML::Node node = YAML::LoadFile(loc);
+
+            use_imu_as_input = node["common"]["use_imu_as_input"].as<bool>();
+            verbose = node["common"]["verbose"].as<bool>();
+            print_matrices = node["common"]["print_kf_matrices"].as<bool>();
+            grav = node["common"]["gravity"].as<double>();
+            frames_to_keep = node["common"]["pose_trail"].as<int>();
+            pose_storage = node["common"]["pose_storage_loc"].as<std::string>();
+            all_pose_storage = node["common"]["all_pose_storage_loc"].as<std::string>();
+            store_all = node["common"]["store_all_coordinates"].as<bool>();
+            use_outliers = node["common"]["use_outliers"].as<bool>();
+
+            est_extrinsic = node["kalman_filter_params"]["est_extrinsic"].as<bool>();
+            laser_point_cov = node["kalman_filter_params"]["lidar_measurement_noise"].as<double>();
+            imu_acc_meas_cov = node["kalman_filter_params"]["imu_acc_measurement_noise"].as<double>();
+            imu_gyro_meas_cov = node["kalman_filter_params"]["imu_gyro_measurement_noise"].as<double>();
+            satu_acc = node["kalman_filter_params"]["measurement_covariance"]["satu_acc"].as<double>();
+            satu_gyro = node["kalman_filter_params"]["measurement_covariance"]["satu_gyro"].as<double>();
+            max_imu_iter = node["kalman_filter_params"]["max_imu_iterations"].as<int>();
+
+            num_corresp = node["icp_params"]["num_correspondences"].as<int>();
+            max_icp_iter = node["icp_params"]["max_iteration"].as<int>();
+            estimation_threshold = node["icp_params"]["estimation_threshold"].as<double>();
+
+            tracker = PointHelper(est_extrinsic);
         }
 
-        void update_imu_reading(const geometry_msgs::Vector3 &imu_gyro, const geometry_msgs::Vector3 &imu_acc, double sf = 1)
+        void reset_parameters()
         {
-            ang_vel_read << imu_gyro.x, imu_gyro.y, imu_gyro.z;
-            acc_vel_read << imu_acc.x, imu_acc.y, imu_acc.z;
-            acc_vel_read *= sf;
+            // Holds information about initial guess for all readings in current frames
+            tracker.update_pose(state);
+            sigma = icp_ptr->ICP_setup();
+            threshold = sigma / 3.0;
         }
 
-        utils::Vec3dVector pre_initialization(frame::LidarImuInit::Ptr &meas, bool init = false);
-        void initialize_map(frame::LidarImuInit::Ptr &meas);
-
-        void h_model_input(dyn_share_modified<double> &data, frame::LidarImuInit::Ptr &meas);
-        void h_model_output(dyn_share_modified<double> &data, frame::LidarImuInit::Ptr &meas);
-        void h_model_IMU_output(dyn_share_modified<double> &data, const frame::LidarImuInit::Ptr &meas);
-        bool update_h_model_lidar_output(frame::LidarImuInit::Ptr &meas, bool input);
-        bool update_h_model_IMU_output(frame::LidarImuInit::Ptr &meas);
-        bool initialize_sensors(double odom_freq, double timestamp, bool &enabled,
-                                double &timediff_imu_wrt_lidar, const double &move_start_time);
-        utils::Vec3dVector points_body_to_world(const utils::Vec3dVector &points);
-        double position_norm();
-        bool map_def()
+        void set_extrinsics(const Eigen::Matrix3d &Lidar_R_wrt_IMU, const Eigen::Vector3d &Lidar_T_wrt_IMU)
         {
-            return init_map;
+            tracker.Lidar_R_wrt_IMU = Lidar_R_wrt_IMU;
+            tracker.Lidar_T_wrt_IMU = Lidar_T_wrt_IMU;
+
+            // push into respective states
+            state->nominal_state.offset_R_L_I = utils::rmat2quat(Lidar_R_wrt_IMU);
+            state->nominal_state.offset_T_L_I = Lidar_T_wrt_IMU;
         }
-        std::tuple<Eigen::Vector3d, Eigen::Quaterniond> update_map();
-        Sophus::SE3d get_lidar_pos();
+
+        void update_imu_reading(const Eigen::Vector3d &imu_gyro, const Eigen::Vector3d &imu_acc, double sf = 1)
+        {
+            ang_vel_read = imu_gyro;
+            acc_vel_read = sf * imu_acc;
+        }
+
+        bool has_moved()
+        {
+            return icp_ptr->has_moved();
+        }
+
+        void initialize_orientation(bool imu_enabled, Eigen::Vector3d mean_acc)
+        {
+            (state->nominal_state.grav << 0.0, 0.0, -grav).finished();
+            state->nominal_state.imu_acc = -1.0 * state->nominal_state.grav;
+
+            state->initialize_orientation(mean_acc);
+            orientation_init = true;
+        }
+
+        bool initialize_map(const frame::SensorData &data);
+        bool update_h_model(const frame::SensorData &data);
+        bool update_h_model_IMU_output(double gravity_sf = 1.0);
+        void update_map(PointsPtrVector &points);
+        void predict(double dt, bool predict_state, bool prop_cov);
+        void pose_trail_tracker();
 
     public:
         // attributes
-        lidar::KissICP::Ptr icp_ptr;
-
-        bool est_extrinsic, use_imu_as_input;
-        Eigen::Matrix3d Lidar_R_wrt_IMU;
-        Eigen::Vector3d Lidar_T_wrt_IMU;
-        StateInput inp_state;
-        StateOutput out_state;
+        std::vector<Sophus::SE3d> key_poses, all_pose;
+        bool est_extrinsic, use_imu_as_input, orientation_init, init_map;
         Eigen::Vector3d ang_vel_read, acc_vel_read;
         Eigen::Vector3d zero = Eigen::Vector3d::Zero();
-        SensorInit::Ptr sensor_init;
-
-        int frame_num;
+        PointsPtrVector lidar_point_cloud;
+        lidar::KissICP::Ptr icp_ptr;
+        State::Ptr state = nullptr;
+        int frame_num, num_corresp;
+        double grav;
 
     private:
-        template <typename StateType>
-        void h_model_lidar(StateType &state, dyn_share_modified<double> &data, frame::LidarImuInit::Ptr &meas);
+        struct PointHelper
+        {
+            PointHelper() {}
+            explicit PointHelper(bool est) : est_extrinsic(est)
+            {
+                matched.resize(2);
+            }
 
-        template <typename State>
-        void calculate_h_lidar(dyn_share_modified<double> &data, int idx, const State &m, const Eigen::Vector3d &src_point);
+            void initial_transform(const Sophus::SE3d &init_guess)
+            {
+                // points in imu coordinates
+                points_imu_coord = orig_point_lidar;
+                utils::transform_points(T_L_I, points_imu_coord);
 
-        template <int H_Dim>
-        bool update_h_model(frame::LidarImuInit::Ptr &meas);
+                // convert base point to imu-world coordinates
+                points_imu_world_coord = points_imu_coord;
+                utils::transform_points(init_guess, points_imu_world_coord);
+                T_I_W = init_guess;
+                T_total = T_I_W * T_L_I;
+            }
 
-        double laser_point_cov, satu_acc, satu_gyro;
-        utils::Vec3dVector original_points, curr_downsampled_frame;
-        bool init_map, data_accum_finished;
-        Eigen::MatrixXd Jaco_rot;
+            void transform_points(State::Ptr &state)
+            {
+                // update pose
+                update_pose(state);
+
+                /*................. Get new imu frame locations .......... */
+                points_imu_coord = orig_point_lidar;
+                utils::transform_points(T_L_I, points_imu_coord);
+
+                /*................. Get new world locations .......... */
+                points_imu_world_coord = points_imu_coord;
+                utils::transform_points(T_I_W, points_imu_world_coord);
+            }
+
+            void clear()
+            {
+                orig_point_lidar.clear();
+                points_imu_world_coord.clear();
+                points_imu_coord.clear();
+                map_points.clear();
+                matched.clear();
+                first_matched = false;
+            }
+
+            void update_init(State::Ptr &state)
+            {
+                T_I_W_init = state->get_IMU_pose();
+                if (est_extrinsic)
+                    T_L_I_init = state->get_L_I_pose();
+                else
+                    T_L_I_init = Sophus::SE3d(Eigen::Quaterniond(Lidar_R_wrt_IMU), Lidar_T_wrt_IMU);
+
+                T_total_init = T_I_W_init * T_L_I_init;
+            }
+
+            void update_pose(State::Ptr &state)
+            {
+                T_I_W = state->get_IMU_pose();
+
+                if (est_extrinsic)
+                    T_L_I = state->get_L_I_pose();
+                else
+                    T_L_I = Sophus::SE3d(Eigen::Quaterniond(Lidar_R_wrt_IMU), Lidar_T_wrt_IMU);
+
+                T_total = T_I_W * T_L_I;
+            }
+
+            void curr_info()
+            {
+                std::cout << "-----------------------------------" << std::endl;
+                std::cout << "\nNew Lidar_Imu Pose :\n"
+                          << T_L_I.matrix() << std::endl;
+                std::cout << "-----------------------------------" << std::endl;
+                std::cout << "\nNew Imu_world Pose :\n"
+                          << T_I_W.matrix() << std::endl;
+                std::cout << "-----------------------------------" << std::endl;
+            }
+
+            void print_match_info()
+            {
+                bool src_empty = std::get<0>(matched[0]).empty() || std::get<1>(matched[0]).empty();
+                bool targ_empty = std::get<0>(matched[1]).empty() || std::get<1>(matched[1]).empty();
+
+                if (!src_empty || !targ_empty)
+                {
+                    std::cout << "-----------------------------------" << std::endl;
+                    std::cout << "Matched points at first step" << std::endl;
+                    utils::printMatchedPoints(std::get<0>(matched[0]), std::get<1>(matched[0]));
+                    std::cout << "Matched points at final step" << std::endl;
+                    utils::printMatchedPoints(std::get<0>(matched[1]), std::get<1>(matched[1]));
+                }
+            }
+
+            // track current transform
+            Sophus::SE3d T_L_I, T_I_W, T_total;
+            Sophus::SE3d T_L_I_init, T_I_W_init, T_total_init;
+
+            PointsPtrVector orig_point_lidar;
+            PointsPtrVector points_imu_world_coord;
+            PointsPtrVector points_imu_coord;
+            std::vector<PointsVectorTuple> matched;
+
+            // the map points are in the lidar frame. Need to convert before putting in map
+            PointsPtrVector map_points;
+
+            // extrinsics
+            Eigen::Matrix3d Lidar_R_wrt_IMU = Eigen::Matrix3d::Identity();
+            Eigen::Vector3d Lidar_T_wrt_IMU = Eigen::Vector3d::Zero();
+
+            bool est_extrinsic;
+            bool first_matched = false;
+        };
+
+        void h_model_IMU_output(dyn_share_modified<double> &data, double gravity_sf);
+        void calculate_h_lidar(dyn_share_modified<double> &data, int idx);
+        bool h_model_lidar(dyn_share_modified<double> &data);
+        double align_points(dyn_share_modified<double> &data);
+        double kf_propagation(const Eigen::MatrixXd &h_x, const Eigen::MatrixXd &iter_props,
+                              const Eigen::Matrix<double, -1, 1> &z, const Eigen::MatrixXd &noise,
+                              bool is_imu);
+        void outlier_removal(const std::vector<MapPoint> &targ, const std::vector<int> &returned_idxs,
+                             std::vector<MapPoint> &targ_calc, std::vector<int> &tracked_idx);
+        void print_imu(const State::Ptr &state);
+
+        // attributes
+        double laser_point_cov, imu_acc_meas_cov, imu_gyro_meas_cov, satu_acc, satu_gyro, sigma, threshold, dx_norm;
+        int key_tracker, all_tracker, frames_to_keep, max_imu_iter;
+        bool verbose, print_matrices, store_all, use_outliers;
+        std::string pose_storage, all_pose_storage;
+        double max_icp_iter, estimation_threshold;
+        PointsPtrVector initial_frames;
+        std::vector<int> tracked_idx; // tracking matched points
+        PointHelper tracker;
     };
 };
 #endif

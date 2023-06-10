@@ -1,7 +1,9 @@
 #include "limu/utils/calculation_helpers.hpp"
+#include <tbb/parallel_sort.h>
 
 namespace
 {
+
     sensor_msgs::PointField get_timestamp_field(const sensor_msgs::PointCloud2::ConstPtr &msg)
     {
         sensor_msgs::PointField ts_field;
@@ -132,6 +134,30 @@ namespace utils
             { return T * point; });
     }
 
+    void transform_points(const SE3d &T, std::vector<utils::Point> &points)
+    {
+        if (points.empty())
+        {
+            std::cout << "[INFO] utils::transform_points the points vector is empty\n";
+            return;
+        }
+
+        for (auto &point : points)
+            point.point = T * point.point;
+    }
+
+    void transform_points(const SE3d &T, std::vector<utils::Point::Ptr> &points)
+    {
+        if (points.empty())
+        {
+            std::cout << "[INFO] utils::transform_points the points vector is empty\n";
+            return;
+        }
+
+        for (auto &point : points)
+            point->point = T * point->point;
+    }
+
     utils::Vec3Tuple get_motion(const SE3d &start_pose, const SE3d &end_pose, double dt)
     {
         // get twist
@@ -141,9 +167,23 @@ namespace utils
 
     utils::Voxel get_vox_index(const utils::Vec3d &point, double vox_size)
     {
-        return utils::Voxel(static_cast<int>(point.x() / vox_size),
-                            static_cast<int>(point.y() / vox_size),
-                            static_cast<int>(point.z() / vox_size));
+        return utils::Voxel(static_cast<int>(std::round(point.x() / vox_size)),
+                            static_cast<int>(std::round(point.y() / vox_size)),
+                            static_cast<int>(std::round(point.z() / vox_size)));
+    }
+
+    utils::Voxel get_vox_index(const utils::Point &point, double vox_size)
+    {
+        return utils::Voxel(static_cast<int>(std::round(point.point.x() / vox_size)),
+                            static_cast<int>(std::round(point.point.y() / vox_size)),
+                            static_cast<int>(std::round(point.point.z() / vox_size)));
+    }
+
+    utils::Voxel get_vox_index(const utils::Point::Ptr &point, double vox_size)
+    {
+        return utils::Voxel(static_cast<int>(std::round(point->point.x() / vox_size)),
+                            static_cast<int>(std::round(point->point.y() / vox_size)),
+                            static_cast<int>(std::round(point->point.z() / vox_size)));
     }
 
     utils::Vec3d rotation_matrix_to_euler_angles(const utils::Mat3d &rot)
@@ -165,5 +205,74 @@ namespace utils
         }
         utils::Vec3d ang(x, y, z);
         return ang;
+    }
+
+    double calculate_median(const std::vector<double> &sorted_data, size_t start, size_t end)
+    {
+        size_t n = end - start + 1;
+        if (n % 2 == 0)
+            return (sorted_data[start + n / 2 - 1] + sorted_data[start + n / 2]) / 2.0;
+        else
+            return sorted_data[start + n / 2];
+    }
+
+    std::vector<double> IQR(const std::vector<double> &data)
+    {
+        std::vector<double> sorted_data = data;
+        tbb::parallel_sort(sorted_data.begin(), sorted_data.end());
+
+        size_t n = sorted_data.size();
+        // Calculate the lower quartile (Q1)
+        double q1 = calculate_median(sorted_data, 0, n / 2 - 1);
+
+        // Calculate the upper quartile (Q3)
+        double q3 = (n % 2 == 0) ? calculate_median(sorted_data, n / 2, n - 1) : calculate_median(sorted_data, n / 2 + 1, n - 1);
+
+        return {q1, q3, q3 - q1};
+    }
+
+    double calculate_mad(const std::vector<double> &data)
+    {
+        std::vector<double> sorted_data = data;
+        tbb::parallel_sort(sorted_data.begin(), sorted_data.end());
+
+        size_t n = sorted_data.size();
+        double median = calculate_median(sorted_data, 0, n - 1);
+
+        std::vector<double> abs_deviations;
+        abs_deviations.reserve(data.size());
+        for (const auto &value : data)
+            abs_deviations.push_back(std::abs(value - median));
+
+        double mad = calculate_median(abs_deviations, 0, n - 1);
+
+        return mad;
+    }
+    void vec_2_matrices(const std::vector<double> &R, const std::vector<double> &t, utils::Mat3d &r_mat, utils::Vec3d &t_vec)
+    {
+        if (R.size() != 9)
+            throw std::invalid_argument("Invalid size of input vector R. Expected size: 9.");
+
+        if (t.size() != 3)
+            throw std::invalid_argument("Invalid size of input vector t. Expected size: 3 or more.");
+
+        r_mat = Eigen::Matrix3d::Zero();
+        for (int i = 0; i < 3; ++i)
+        {
+            for (int j = 0; j < 3; ++j)
+                r_mat(i, j) = R[i * 3 + j];
+        }
+
+        utils::rot_mat_norm(r_mat);
+        t_vec = utils::Vec3d(t[0], t[1], t[2]);
+    }
+
+    void rot_mat_norm(utils::Mat3d &rot_mat)
+    {
+        for (int i = 0; i < 3; ++i)
+        {
+            double length = rot_mat.col(i).norm();
+            rot_mat.col(i) /= length;
+        }
     }
 }

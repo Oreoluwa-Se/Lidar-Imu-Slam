@@ -1,14 +1,19 @@
 #ifndef VOXEL_BLOCK_HPP
 #define VOXEL_BLOCK_HPP
 
-#include <boost/thread/shared_mutex.hpp>
 #include "common.hpp"
 #include <utility>
+#include <queue>
+#include <algorithm>
 
 namespace lidar
 {
-    using Vec3dPointer = std::shared_ptr<utils::VecEigenPtrVec3d>;
-    using PointPointer = std::shared_ptr<utils::Vec3d>;
+    using MapPoint = utils::Point;
+    using MapPointPtr = MapPoint::Ptr;
+    using PointsVector = std::vector<MapPoint>;
+    using PointsPtrVector = std::vector<MapPointPtr>;
+    using WPointsPtrVector = std::vector<std::weak_ptr<MapPoint>>;
+
     // work on VoxelBlock struct
     struct VoxelBlock
     {
@@ -19,6 +24,8 @@ namespace lidar
         VoxelBlock(){};
 
         explicit VoxelBlock(const size_t n);
+        explicit VoxelBlock(bool use_weak);
+        VoxelBlock(const size_t n, bool use_weak);
 
         // copy constructor
         VoxelBlock(const VoxelBlock &other);
@@ -34,24 +41,28 @@ namespace lidar
 
         ~VoxelBlock() = default;
 
-        void add_point(const PointPointer &point);
+        void add_point(const MapPointPtr &point);
 
-        PointPointer get_closest_point(const utils::Vec3d &point) const;
+        PointsPtrVector get_closest_points(const MapPoint &point, double max_corresp, int num_points) const;
 
-        Vec3dPointer get_points() const;
+        MapPoint get_closest_point(const MapPoint &point) const;
 
-        PointPointer get_first_point() const;
+        PointsPtrVector get_points() const;
+
+        MapPoint get_first_point() const;
 
         void remove_points(const utils::Vec3d &point, double distance);
 
         inline bool empty()
         {
             boost::shared_lock<boost::shared_mutex> lock(mutex);
-            return points->empty();
+            return points.empty();
         }
         // attributes
         mutable boost::shared_mutex mutex;
-        Vec3dPointer points;
+        PointsPtrVector points;    // shared pointers
+        WPointsPtrVector w_points; // weak pointers
+        bool use_weak;
         size_t max_points;
     };
 
