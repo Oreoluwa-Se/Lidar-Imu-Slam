@@ -123,7 +123,6 @@ void LIO::initialize_transforms(std::string &loc)
             extract_rot_mat_values(node["sensor_locations"]["imu_T"]),
             rot_mat, trans);
 
-        std::cout << rot_mat.matrix() << std::endl;
         Sophus::SE3d imu_base = Sophus::SE3d(rot_mat, trans);
         publish_transform("imu_frame", imu_base, br);
 
@@ -244,10 +243,10 @@ void LIO::process_frame(const frame::LidarImuInit::Ptr &meas)
             tracker.time_update_last = data.timestamp;
             tracker.time_predict_last_const = data.timestamp;
         }
-        ROS_INFO("Pre KF run");
+
         if (kalman_filter_run(data, imu_ptr->enabled))
             publish(idx);
-        ROS_INFO("Post publish or not");
+
         idx++;
         ekf->pose_trail_tracker();
     }

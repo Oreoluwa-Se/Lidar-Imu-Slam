@@ -286,6 +286,7 @@ namespace odometry
         // reference for lidar points later
         lidar_point_cloud = tracker.map_points;
         tracker.initial_transform(icp_ptr->init_guess);
+        // tracker.transform_points(state);
 
         // Chamber of ICP secrets
         for (int idx = 0; idx < max_icp_iter; ++idx)
@@ -578,7 +579,8 @@ namespace odometry
         }
 
         // keep key poses
-        key_poses.emplace_back(icp_ptr->poses_().back());
+        if (!icp_ptr->is_empty())
+            key_poses.emplace_back(icp_ptr->poses_().back());
 
         // keep main poses
         if (icp_ptr->poses_().size() >= frames_to_keep)

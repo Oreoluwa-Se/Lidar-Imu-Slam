@@ -73,6 +73,8 @@ namespace lidar
 
         PointsVector local_map_() const { return local_map->pointcloud(); }
         std::vector<SE3d> poses_() const { return poses; }
+        bool is_empty() { return poses.empty(); }
+        SE3d tail_pose() { return poses.back(); }
 
     public:
         std::shared_ptr<VoxelHashMap> local_map = nullptr;

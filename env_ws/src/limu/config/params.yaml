@@ -29,14 +29,14 @@ common:
   gravity: 9.81
 
   # Pose trail length for visualization
-  pose_trail: 1000
+  pose_trail: 50
 
   # Update point cloud every k timestamps
   update_every_k_ts: 1
 
   # Debugging options
   print_kf_matrices: false
-  verbose: true
+  verbose: false
 
   # Run modes
   use_imu_as_input: false
@@ -55,7 +55,7 @@ scan_preprocessing:
   max_range: 80
 
   # Minimum range of the scanner
-  min_range: 0.5
+  min_range: 3.0
 
   # Minimum scanning angle
   min_angle: 0.0
